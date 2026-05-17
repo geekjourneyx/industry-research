@@ -5,11 +5,11 @@ import "time"
 type ProviderType string
 
 const (
-	ProviderTypeDirectSearch        ProviderType = "direct_search"
-	ProviderTypeModelAnswerSearch   ProviderType = "model_answer_search"
-	ProviderTypeAgentNativeSearch   ProviderType = "agent_native_search"
-	ProviderTypeBrowserVerification ProviderType = "browser_verification"
-	ProviderTypeKnowledgeRetrieval  ProviderType = "knowledge_retrieval"
+	ProviderTypeDirectSearch       ProviderType = "direct_search"
+	ProviderTypeModelAnswerSearch  ProviderType = "model_answer_search"
+	ProviderTypeAgentNativeSearch  ProviderType = "agent_native_search"
+	ProviderTypeBrowserVerify      ProviderType = "browser_verification"
+	ProviderTypeKnowledgeRetrieval ProviderType = "knowledge_retrieval"
 )
 
 type Mode string
@@ -21,12 +21,12 @@ const (
 )
 
 type RetrievalRequest struct {
-	Provider     string         `json:"provider"`
-	ProviderType ProviderType   `json:"provider_type"`
-	Mode         Mode           `json:"mode"`
-	Query        string         `json:"query"`
-	Parameters   map[string]any `json:"parameters"`
-	Headers      map[string]any `json:"-"`
+	Provider     string            `json:"provider"`
+	ProviderType ProviderType      `json:"provider_type,omitempty"`
+	Mode         Mode              `json:"mode"`
+	Query        string            `json:"query"`
+	Parameters   map[string]any    `json:"parameters,omitempty"`
+	Headers      map[string]string `json:"-"`
 }
 
 type RetrievalResponse struct {
@@ -55,17 +55,17 @@ type Item struct {
 	Rank                 int            `json:"rank"`
 	Title                string         `json:"title"`
 	URL                  string         `json:"url"`
-	DisplayURL           string         `json:"display_url"`
-	SiteName             string         `json:"site_name"`
-	SiteIcon             string         `json:"site_icon"`
-	Snippet              string         `json:"snippet"`
-	Summary              string         `json:"summary"`
-	PublishedAt          time.Time      `json:"published_at"`
-	LastCrawledAt        time.Time      `json:"last_crawled_at"`
-	Language             string         `json:"language"`
+	DisplayURL           string         `json:"display_url,omitempty"`
+	SiteName             string         `json:"site_name,omitempty"`
+	SiteIcon             string         `json:"site_icon,omitempty"`
+	Snippet              string         `json:"snippet,omitempty"`
+	Summary              string         `json:"summary,omitempty"`
+	PublishedAt          string         `json:"published_at,omitempty"`
+	LastCrawledAt        string         `json:"last_crawled_at,omitempty"`
+	Language             string         `json:"language,omitempty"`
 	ContentType          string         `json:"content_type"`
 	SourceConfidenceHint string         `json:"source_confidence_hint"`
-	ProviderMetadata     map[string]any `json:"provider_metadata"`
+	ProviderMetadata     map[string]any `json:"provider_metadata,omitempty"`
 }
 
 type Answer struct {
@@ -83,10 +83,10 @@ type Citation struct {
 type Error struct {
 	Code           string `json:"code"`
 	Message        string `json:"message"`
-	ProviderStatus int    `json:"provider_status"`
-	ProviderCode   string `json:"provider_code"`
-	ProviderLogID  string `json:"provider_log_id"`
+	ProviderStatus int    `json:"provider_status,omitempty"`
+	ProviderCode   string `json:"provider_code,omitempty"`
+	ProviderLogID  string `json:"provider_log_id,omitempty"`
 	Retryable      bool   `json:"retryable"`
 	AgentAction    string `json:"agent_action"`
-	RawErrorPath   string `json:"raw_error_path"`
+	RawErrorPath   string `json:"raw_error_path,omitempty"`
 }
