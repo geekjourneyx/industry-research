@@ -165,6 +165,37 @@ func TestSearchMapsHTTP429ToRateLimitedRetrievalError(t *testing.T) {
 	}
 }
 
+func TestSearchMapsHTTP429WithNonJSONBodyToRateLimitedRetrievalError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", server.URL, server.Client())
+	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Search() error = nil, want provider error")
+	}
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Errors length = %d, want 1", len(resp.Errors))
+	}
+	got := resp.Errors[0]
+	if got.Code != rerrors.CodeProviderRateLimited {
+		t.Fatalf("error code = %q, want provider_rate_limited", got.Code)
+	}
+	if !got.Retryable {
+		t.Fatalf("Retryable = false, want true")
+	}
+	if !strings.Contains(got.AgentAction, "Retry") {
+		t.Fatalf("AgentAction = %q, want retry guidance", got.AgentAction)
+	}
+	if got.ProviderStatus != http.StatusTooManyRequests {
+		t.Fatalf("ProviderStatus = %d, want 429", got.ProviderStatus)
+	}
+}
+
 func TestSearchMissingAPIKeyReturnsErrorWithoutHTTPCall(t *testing.T) {
 	var calls int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

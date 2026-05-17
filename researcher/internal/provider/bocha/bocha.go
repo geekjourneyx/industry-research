@@ -123,6 +123,11 @@ func (c *Client) Search(ctx context.Context, req retrieval.RetrievalRequest) (re
 	var decoded bochaResponse
 	if len(strings.TrimSpace(string(raw))) > 0 {
 		if err := json.Unmarshal(raw, &decoded); err != nil {
+			if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
+				retrievalErr := mapProviderError(httpResp.StatusCode, "", string(raw), "")
+				resp.Errors = append(resp.Errors, retrievalErr)
+				return resp, fmt.Errorf("bocha search: provider error: %s", retrievalErr.Message)
+			}
 			resp.Errors = append(resp.Errors, retrieval.Error{
 				Code:           rerrors.CodeProviderParseError,
 				Message:        err.Error(),
