@@ -426,6 +426,23 @@ func TestRunAnswerUnknownFlagAfterQueryReturnsInvalidArguments(t *testing.T) {
 	}
 }
 
+func TestRunAnswerSourcesWithoutValueReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer", "volcengine", "test", "--sources", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "invalid --sources") {
+		t.Fatalf("stderr = %q, want invalid sources error", stderr.String())
+	}
+}
+
 func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 	tests := []struct {
 		name string
@@ -443,6 +460,16 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 			want: "invalid --limit",
 		},
 		{
+			name: "zero limit",
+			args: []string{"answer", "volcengine", "test", "--limit", "0", "--json"},
+			want: "invalid --limit",
+		},
+		{
+			name: "negative limit",
+			args: []string{"answer", "volcengine", "test", "--limit", "-1", "--json"},
+			want: "invalid --limit",
+		},
+		{
 			name: "invalid max keyword",
 			args: []string{"answer", "volcengine", "test", "--max-keyword", "nope", "--json"},
 			want: "invalid --max-keyword",
@@ -453,6 +480,16 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 			want: "invalid --max-keyword",
 		},
 		{
+			name: "zero max keyword",
+			args: []string{"answer", "volcengine", "test", "--max-keyword", "0", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
+			name: "negative max keyword",
+			args: []string{"answer", "volcengine", "test", "--max-keyword", "-1", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
 			name: "invalid max tool calls",
 			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "nope", "--json"},
 			want: "invalid --max-tool-calls",
@@ -460,6 +497,16 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 		{
 			name: "empty max tool calls",
 			args: []string{"answer", "volcengine", "test", "--max-tool-calls=", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+		{
+			name: "zero max tool calls",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "0", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+		{
+			name: "negative max tool calls",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "-1", "--json"},
 			want: "invalid --max-tool-calls",
 		},
 	}

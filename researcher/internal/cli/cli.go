@@ -167,18 +167,22 @@ func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
 		return rerrors.ExitInvalidArguments
 	}
 
-	limit, err := intFlag(args, "--limit", 10)
+	limit, err := positiveIntFlag(args, "--limit", 10)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
-	maxKeyword, err := intFlag(args, "--max-keyword", 3)
+	maxKeyword, err := positiveIntFlag(args, "--max-keyword", 3)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
-	maxToolCalls, err := intFlag(args, "--max-tool-calls", 3)
+	maxToolCalls, err := positiveIntFlag(args, "--max-tool-calls", 3)
 	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	if _, err := requiredStringFlag(args, "--sources"); err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
@@ -268,6 +272,28 @@ func intFlag(args []string, name string, fallback int) (int, error) {
 		return 0, fmt.Errorf("invalid %s: %q", name, value)
 	}
 	return parsed, nil
+}
+
+func positiveIntFlag(args []string, name string, fallback int) (int, error) {
+	parsed, err := intFlag(args, name, fallback)
+	if err != nil {
+		return 0, err
+	}
+	if parsed <= 0 {
+		return 0, fmt.Errorf("invalid %s: %q", name, strconv.Itoa(parsed))
+	}
+	return parsed, nil
+}
+
+func requiredStringFlag(args []string, name string) (string, error) {
+	value, found := flagValuePresent(args, name)
+	if !found {
+		return "", nil
+	}
+	if strings.TrimSpace(value) == "" || isFlag(value) {
+		return "", fmt.Errorf("invalid %s: %q", name, value)
+	}
+	return value, nil
 }
 
 func flagValuePresent(args []string, name string) (string, bool) {
