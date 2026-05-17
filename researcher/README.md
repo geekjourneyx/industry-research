@@ -4,6 +4,8 @@
 
 ## Commands
 
+Task 1 implements only the version and help commands. The remaining commands below are planned first-version commands and are listed to reserve the CLI shape.
+
 - `researcher version` prints the current binary version.
 - `researcher help`, `researcher --help`, and `researcher -h` print command help.
 - `researcher capabilities --json` will describe supported capabilities in JSON.
@@ -38,13 +40,13 @@ Values are resolved from lowest to highest precedence:
 
 ## Example Config
 
+Use environment variables for real API secrets. Keep config files for non-secret defaults whenever possible.
+
 ```yaml
 providers:
   bocha:
-    api_key: "bocha-api-key"
     endpoint: "https://api.bochaai.com/v1/web-search"
   volcengine:
-    api_key: "ark-api-key"
     endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses"
     model: "doubao-seed-2-0-lite-260215"
 defaults:
