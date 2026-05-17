@@ -1,0 +1,105 @@
+{
+  "skill_name": "industry-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想了解低空经济的商业机会，特别是eVTOL（电动垂直起降飞行器）领域。我在考虑是否要投资相关的上游核心零部件企业，但不太确定这个赛道的政策风险和技术成熟度。帮我做一份调研报告，标准深度就好。",
+      "expected_output": "一份标准深度的行业调研报告，覆盖低空经济/eVTOL的行业全景、正反论证（技术成熟度的正向分析 vs 政策与商业化风险的反向分析）、战略路线图，以及数据溯源表。报告应包含行业分类代码映射（C37航空航天+G56航空运输等）、至少引用3个以上外部数据源、包含置信度评分。",
+      "files": [],
+      "expectations": [
+        "报告包含执行摘要/Executive Summary章节",
+        "报告包含SCQ结构（情境-冲突-疑问）",
+        "报告包含核心论证章节，且存在正题(Bull Case)和反题(Bear Case)的对抗分析",
+        "报告引用了至少3个不同的外部数据源",
+        "报告包含置信度评分",
+        "报告包含数据溯源表",
+        "工作区目录中产出了ghost_deck.json",
+        "工作区目录中产出了blue_r1.json和red_r1.json（第一轮独立分析）",
+        "工作区目录中产出了blue_r2.json和red_r2.json（第二轮交叉反驳）"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我快速看一下AI+医疗（特别是AI辅助诊断和药物研发）这个方向值不值得做，我是一个早期VC，在看这个赛道的seed轮项目。不需要太深入，简要版报告就行。/industry-research --depth brief",
+      "expected_output": "一份精简版（brief）调研报告，约3000字，覆盖AI医疗的核心机会和关键风险。虽然是精简版但仍应有红蓝对抗的痕迹，有明确的投资建议方向。",
+      "files": [],
+      "expectations": [
+        "报告为精简版（brief），字数在1500-5000字符范围内",
+        "报告包含执行摘要",
+        "报告包含核心论证且有正反两方观点",
+        "报告包含风险矩阵",
+        "报告对VC早期投资给出了可操作的建议",
+        "行业代码映射覆盖了C27(医药制造)、I65(AI软件)等相关代码"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm evaluating the energy storage sector in China, specifically lithium iron phosphate (LFP) battery technology for grid-scale applications. We're a European utility company considering a JV with a Chinese manufacturer. Need a comprehensive industry research report. /industry-research --depth comprehensive",
+      "expected_output": "A comprehensive (~15,000 char) research report in English covering the Chinese energy storage/LFP battery market. Should include detailed PESTLE analysis, Porter's Five Forces for competitive landscape, bull vs bear cases with cross-rebuttal, strategic roadmap for JV entry, risk matrix including geopolitical risks, and full data provenance table.",
+      "files": [],
+      "expectations": [
+        "Report is in English (matching the English input)",
+        "Report is comprehensive depth with character count above 8000",
+        "Report includes PESTLE or Porter's Five Forces analysis",
+        "Report addresses geopolitical/trade policy risks specific to China-Europe JV",
+        "Report includes a strategic roadmap with timeline",
+        "Report includes data provenance table with source reliability ratings",
+        "Report contains confidence scores per section",
+        "Ghost deck maps to industry codes including C38 (electrical machinery) and D44 (power generation)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "帮我判断一个连锁餐饮品牌宣称已经覆盖100个下沉城市是否可信。重点看真实门店、加盟、中央厨房和冷链配送能力，不要只引用新闻稿。标准深度。",
+      "expected_output": "一份标准深度调研报告，必须先构建实体证据计划，再围绕门店、加盟商、中央厨房、仓配和数字前端做三角验证。报告应区分真实覆盖、前端城市列表、筹备节点、加盟代理和不可采信宣传口径。",
+      "files": [],
+      "expectations": [
+        "工作区目录中产出entity_evidence_plan.json",
+        "报告包含实体经营版图与证据链章节",
+        "报告至少使用资本法务、人力组织、物理履约、数字前端、终端反馈中的三类证据",
+        "报告不把官方宣发或媒体报道单独作为高置信度经营事实",
+        "报告包含VERIFIED_OPERATING_FACT或HIGH_CONFIDENCE_INFERENCE等裁决标签",
+        "报告解释至少一个数据冲突或异常场景"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "调研一个生鲜零售品牌声称全国冷链覆盖是否真实。请重点验证仓配节点、配送半径、司机/库管招聘、小程序可配送区域和用户履约反馈。brief即可。",
+      "expected_output": "一份精简报告，核心不是市场规模，而是验证全国冷链覆盖是否有经营痕迹支撑。报告应指出哪些城市是真实履约，哪些只是前端配置或宣传口径。",
+      "files": [],
+      "expectations": [
+        "报告识别仓、车、人、数字前端和用户反馈等最小经营要素",
+        "报告包含至少一个三角验证测试",
+        "报告说明冷链履约受时效、温控、路线密度约束",
+        "报告对单一来源信息标低置信度",
+        "报告包含SUSPENDED_JUDGMENT或UNVERIFIED_NARRATIVE用于不可验证声明"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "分析一个茶饮品牌宣称门店突破5000家、供应链成熟、加盟商盈利稳定是否可信。请用餐饮供应链专家视角，重点挤水分。",
+      "expected_output": "一份调研报告，围绕门店数口径、加盟商主体、招商信息、供应链节点、员工和加盟商反馈做交叉验证，并明确哪些结论不能只靠品牌宣传采信。",
+      "files": [],
+      "expectations": [
+        "报告区分直营、加盟、区域代理和第三方服务",
+        "报告检查门店数、供应链能力和加盟商盈利是三个不同命题",
+        "红方分析包含幽灵门店、加盟纠纷、供应链覆盖不足或宣传口径膨胀等异常测试",
+        "仲裁结论区分已验证经营事实、高可信推断、可解释异常和悬置判断"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "这是一个真实访谈准备例子。请把下面这份餐饮品牌访谈提纲，升级成适合人机结合尽调的研究输入，不要只润色问题，要把问题转成可验证经营命题、追问路径和交叉验证逻辑。重点围绕门店数、GMV、同店、渠道结构、单店UE、总部利润、加盟商画像、外卖补贴、供应链统一供货比例和2026年考核指标。标准深度。",
+      "expected_output": "一套适合餐饮/零售/供应链专家内核消费的研究输入，至少包含 entity_evidence_plan.json、ghost_deck.json，并在适用时产出 expert_interview_guide.md，把访谈提纲重写为经营命题、必问口径、追问和危险回答信号。",
+      "files": [],
+      "expectations": [
+        "工作区目录中产出entity_evidence_plan.json",
+        "工作区目录中产出ghost_deck.json",
+        "工作区目录中产出expert_interview_guide.md",
+        "访谈问题被重写为可验证经营命题，而不是原始问题列表的简单誊写",
+        "访谈指引覆盖必问口径、追问路径、交叉验证对象和危险回答信号",
+        "门店数、GMV、同店、渠道结构、单店UE、总部利润、加盟与供应链被拆成不同经营命题"
+      ]
+    }
+  ]
+}
