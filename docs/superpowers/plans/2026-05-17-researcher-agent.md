@@ -2775,7 +2775,53 @@ Modify chain-brand and restaurant/retail/supply-chain eval cases in `evals/evals
 "高置信度结论必须说明三类独立证据家族"
 ```
 
-- [ ] **Step 2: Extend validator for researcher artifacts**
+- [ ] **Step 2: Add high-friction report eval examples**
+
+Add two eval cases to `evals/evals.json`. These cases are intentionally difficult: they require the agent to infer non-obvious evidence paths, separate operating facts from promotional claims, and refuse high confidence when evidence is thin.
+
+Add the first case for Xiaocan:
+
+```json
+{
+  "id": "rrsc_xiaocan_supply_radius",
+  "category": "restaurant-retail-supply-chain",
+  "prompt": "帮我输出一份晓餐调研报告：1. 晓餐的全量已开城市数量；2. 供给仓的数量；3. 最远的下沉城市开到哪里；4. 最远城市距离供给中心的距离。要求区分品牌宣传、前端城市列表、门店/仓配实际痕迹和第三方可验证证据。/industry-research --depth standard",
+  "expected_output": "一份标准深度调研报告，必须围绕城市覆盖、供给仓、最远下沉城市和供给半径建立证据台账。报告应优先检索品牌官方信息、地图POI、招聘/仓配岗位、加盟资料、工商主体、地方媒体、短视频/公众号线索，并明确哪些城市只是招商或配送覆盖，哪些城市有真实门店或仓配痕迹。若无法确认全量城市或供给仓数量，报告必须给出置信度限制和下一步验证路径。",
+  "must_include": [
+    "全量已开城市数量的口径说明",
+    "供给仓数量及位置证据",
+    "最远下沉城市候选列表",
+    "距离供给中心的计算口径",
+    "证据强弱分层",
+    "不可确认项和反证尝试"
+  ]
+}
+```
+
+Add the second case for Maiji:
+
+```json
+{
+  "id": "rrsc_maiji_ue_and_growth",
+  "category": "restaurant-retail-supply-chain",
+  "prompt": "帮我输出一份麦记调研报告：定量部分包括2023/2024/2025年的门店数和GMV；2025年分季度单店日销、同店同比、2026Q1单店日销和同店同比，并关注不同省份差异；2025-2026Q1分渠道GMV占比（外卖/堂食/团购）及不同渠道杯单价；目前单店UE，包括门店毛利率、租金、人工、利润、建店投入和回本周期；总部利润情况、供货毛利率、总部是否净盈利。定性部分包括麦记崛起原因；综合型玩家入局中式甜品后的冲击和分流；品类热度持续性；创始人经历；加盟商画像；外卖战跟进节奏和补贴政策；外卖补贴退坡后的应对策略；供应链体系建设、总部统一供货比例、核心原材料卡点、玩家差异化和未来建设方向；其他核心战略及内部2026年考核指标。/industry-research --depth comprehensive",
+  "expected_output": "一份综合深度调研报告，不能把未经验证的GMV、单店日销、利润率或总部利润写成事实。报告必须先拆分门店规模、交易规模、单店模型、渠道结构、总部供货、加盟商画像、创始人和竞争冲击等命题，再为每类命题列出可验证线索，例如门店POI、外卖平台前端销量、团购平台券量、招聘薪酬、加盟招商资料、工商和关联公司、访谈/报道、供应链和原料采购线索、社媒/公众号/视频号/新闻报道。定量结论必须标注口径、时间、样本来源和置信度；无法验证的内部指标必须降级为待访谈问题。",
+  "must_include": [
+    "2023-2025门店数与GMV口径拆分",
+    "2025-2026Q1单店日销和同店同比验证路径",
+    "省份差异和样本偏差说明",
+    "外卖/堂食/团购渠道结构和杯单价验证路径",
+    "单店UE与总部利润的可验证证据和不可验证边界",
+    "崛起原因、竞争冲击和品类持续性的反方论证",
+    "创始人、加盟商画像和供应链卡点",
+    "2026内部指标只能在有强证据时给结论，否则列为访谈清单"
+  ]
+}
+```
+
+These cases pass only when the report includes `trace_plan.json`, `evidence_ledger.json`, `disconfirmation_log.json`, `confidence_report.json`, and `final_report.md`, and when unsupported numeric claims are explicitly downgraded instead of stated as facts.
+
+- [ ] **Step 3: Extend validator for researcher artifacts**
 
 Modify `scripts/validate_report.py` by adding optional workspace checks:
 
@@ -2820,7 +2866,7 @@ if "--researcher-workspace" in sys.argv:
         sys.exit(1)
 ```
 
-- [ ] **Step 3: Verify JSON and Python syntax**
+- [ ] **Step 4: Verify JSON and Python syntax**
 
 Run:
 
@@ -2831,7 +2877,7 @@ PYTHONPYCACHEPREFIX=/private/tmp/industry-research-pycache python3 -m py_compile
 
 Expected: both commands exit `0`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add evals/evals.json scripts/validate_report.py
