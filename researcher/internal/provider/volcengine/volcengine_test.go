@@ -71,7 +71,7 @@ func TestAnswerPostsResponsesRequestAndMapsSearchAnswerAnnotationsAndUsage(t *te
 	}))
 	defer server.Close()
 
-	client := NewClient("ark-key", server.URL, server.Client())
+	client := NewClient(" ark-key ", server.URL, server.Client())
 	resp, err := client.Answer(context.Background(), retrieval.RetrievalRequest{
 		Query: " 搜索瑞幸 2026 门店数 ",
 		Parameters: map[string]any{
@@ -170,6 +170,24 @@ func TestAnswerPostsResponsesRequestAndMapsSearchAnswerAnnotationsAndUsage(t *te
 	}
 	if resp.Errors == nil {
 		t.Fatalf("Errors = nil, want initialized empty slice")
+	}
+}
+
+func TestAnswerSuccessfulHTTPWrongShapeReturnsNoRetrievalTriggered(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"resp-123","usage":{"input_tokens":3}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("ark-key", server.URL, server.Client())
+	resp, err := client.Answer(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Answer() error = nil, want no retrieval triggered")
+	}
+	assertSingleError(t, resp, rerrors.CodeNoRetrievalTriggered, 0, false)
+	if resp.Usage["input_tokens"] != float64(3) {
+		t.Fatalf("usage input_tokens = %#v, want decoded usage despite wrong shape", resp.Usage["input_tokens"])
 	}
 }
 

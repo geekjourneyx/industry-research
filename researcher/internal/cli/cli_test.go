@@ -443,6 +443,90 @@ func TestRunAnswerSourcesWithoutValueReturnsInvalidArguments(t *testing.T) {
 	}
 }
 
+func TestRunAnswerValueFlagFollowedByFlagReturnsInvalidArguments(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "model followed by flag",
+			args: []string{"answer", "volcengine", "test", "--model", "--json"},
+			want: "invalid --model",
+		},
+		{
+			name: "config followed by flag",
+			args: []string{"answer", "volcengine", "test", "--config", "--json"},
+			want: "invalid --config",
+		},
+		{
+			name: "limit followed by flag",
+			args: []string{"answer", "volcengine", "test", "--limit", "--json"},
+			want: "invalid --limit",
+		},
+		{
+			name: "max keyword followed by flag",
+			args: []string{"answer", "volcengine", "test", "--max-keyword", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
+			name: "max tool calls followed by flag",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			code := Run(tt.args, "test-version", &stdout, &stderr)
+
+			if code != rerrors.ExitInvalidArguments {
+				t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+			}
+			if stdout.String() != "" {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), tt.want) {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestRunAnswerInvalidSourcesReturnInvalidArguments(t *testing.T) {
+	tests := []struct {
+		name    string
+		sources string
+	}{
+		{name: "unknown source", sources: "toutiao,unknown"},
+		{name: "empty middle element", sources: "toutiao,,douyin"},
+		{name: "empty trailing element", sources: "moji,"},
+		{name: "empty source list", sources: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			code := Run([]string{"answer", "volcengine", "test", "--sources=" + tt.sources, "--json"}, "test-version", &stdout, &stderr)
+
+			if code != rerrors.ExitInvalidArguments {
+				t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+			}
+			if stdout.String() != "" {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), "invalid --sources") {
+				t.Fatalf("stderr = %q, want invalid sources error", stderr.String())
+			}
+		})
+	}
+}
+
 func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 	tests := []struct {
 		name string
@@ -470,6 +554,11 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 			want: "invalid --limit",
 		},
 		{
+			name: "too high limit",
+			args: []string{"answer", "volcengine", "test", "--limit", "51", "--json"},
+			want: "invalid --limit",
+		},
+		{
 			name: "invalid max keyword",
 			args: []string{"answer", "volcengine", "test", "--max-keyword", "nope", "--json"},
 			want: "invalid --max-keyword",
@@ -490,6 +579,11 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 			want: "invalid --max-keyword",
 		},
 		{
+			name: "too high max keyword",
+			args: []string{"answer", "volcengine", "test", "--max-keyword", "51", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
 			name: "invalid max tool calls",
 			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "nope", "--json"},
 			want: "invalid --max-tool-calls",
@@ -507,6 +601,11 @@ func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
 		{
 			name: "negative max tool calls",
 			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "-1", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+		{
+			name: "too high max tool calls",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "11", "--json"},
 			want: "invalid --max-tool-calls",
 		},
 	}

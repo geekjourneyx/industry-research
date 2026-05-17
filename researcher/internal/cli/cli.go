@@ -167,22 +167,28 @@ func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
 		return rerrors.ExitInvalidArguments
 	}
 
-	limit, err := positiveIntFlag(args, "--limit", 10)
+	if err := validateAnswerValueFlags(args); err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+
+	limit, err := rangedIntFlag(args, "--limit", 10, 1, 50)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
-	maxKeyword, err := positiveIntFlag(args, "--max-keyword", 3)
+	maxKeyword, err := rangedIntFlag(args, "--max-keyword", 3, 1, 50)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
-	maxToolCalls, err := positiveIntFlag(args, "--max-tool-calls", 3)
+	maxToolCalls, err := rangedIntFlag(args, "--max-tool-calls", 3, 1, 10)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
-	if _, err := requiredStringFlag(args, "--sources"); err != nil {
+	sources, err := sourcesFlag(args)
+	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
 	}
@@ -201,7 +207,7 @@ func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
 		"max_keyword":    maxKeyword,
 		"max_tool_calls": maxToolCalls,
 	}
-	if sources := splitCommaFlag(flagValue(args, "--sources")); len(sources) > 0 {
+	if len(sources) > 0 {
 		parameters["sources"] = sources
 	}
 
@@ -285,15 +291,15 @@ func positiveIntFlag(args []string, name string, fallback int) (int, error) {
 	return parsed, nil
 }
 
-func requiredStringFlag(args []string, name string) (string, error) {
-	value, found := flagValuePresent(args, name)
-	if !found {
-		return "", nil
+func rangedIntFlag(args []string, name string, fallback int, min int, max int) (int, error) {
+	parsed, err := positiveIntFlag(args, name, fallback)
+	if err != nil {
+		return 0, err
 	}
-	if strings.TrimSpace(value) == "" || isFlag(value) {
-		return "", fmt.Errorf("invalid %s: %q", name, value)
+	if parsed < min || parsed > max {
+		return 0, fmt.Errorf("invalid %s: %q", name, strconv.Itoa(parsed))
 	}
-	return value, nil
+	return parsed, nil
 }
 
 func flagValuePresent(args []string, name string) (string, bool) {
@@ -419,19 +425,51 @@ func parseAnswerArgs(args []string) (string, string, error) {
 	return provider, query, nil
 }
 
-func splitCommaFlag(value string) []string {
-	if value == "" {
-		return nil
+func validateAnswerValueFlags(args []string) error {
+	valueFlags := []string{
+		"--config",
+		"--model",
+		"--limit",
+		"--max-keyword",
+		"--max-tool-calls",
+		"--sources",
+	}
+	for _, name := range valueFlags {
+		value, found := flagValuePresent(args, name)
+		if !found {
+			continue
+		}
+		if strings.TrimSpace(value) == "" || strings.HasPrefix(value, "--") {
+			return fmt.Errorf("invalid %s: %q", name, value)
+		}
+	}
+	return nil
+}
+
+func sourcesFlag(args []string) ([]string, error) {
+	value, found := flagValuePresent(args, "--sources")
+	if !found {
+		return nil, nil
+	}
+	return splitSourcesFlag(value)
+}
+
+func splitSourcesFlag(value string) ([]string, error) {
+	allowed := map[string]bool{
+		"douyin":  true,
+		"moji":    true,
+		"toutiao": true,
 	}
 	parts := strings.Split(value, ",")
 	out := make([]string, 0, len(parts))
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
-		if trimmed != "" {
-			out = append(out, trimmed)
+		if trimmed == "" || !allowed[trimmed] {
+			return nil, fmt.Errorf("invalid --sources: %q", value)
 		}
+		out = append(out, trimmed)
 	}
-	return out
+	return out, nil
 }
 
 func exitCodeForRetrievalErrors(errors []retrieval.Error) int {

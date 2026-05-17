@@ -59,7 +59,8 @@ func (c *Client) Answer(ctx context.Context, req retrieval.RetrievalRequest) (re
 		})
 		return resp, errors.New("volcengine answer: query is required")
 	}
-	if strings.TrimSpace(c.apiKey) == "" {
+	apiKey := strings.TrimSpace(c.apiKey)
+	if apiKey == "" {
 		resp.Errors = append(resp.Errors, retrieval.Error{
 			Code:        rerrors.CodeMissingAPIKey,
 			Message:     "Volcengine ARK API key is required",
@@ -90,7 +91,7 @@ func (c *Client) Answer(ctx context.Context, req retrieval.RetrievalRequest) (re
 		})
 		return resp, fmt.Errorf("volcengine answer: create request: %w", err)
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	httpResp, err := c.httpClient.Do(httpReq)
