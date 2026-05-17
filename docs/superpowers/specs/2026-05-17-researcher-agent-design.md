@@ -219,17 +219,16 @@ capabilities
 
 ## Configuration
 
-Default config file lookup should follow Unix/XDG conventions while keeping a compatibility fallback:
+Default config file lookup should follow Unix/XDG conventions:
 
 ```text
 1. --config <path>
 2. RESEARCHER_CONFIG
 3. $XDG_CONFIG_HOME/researcher/config.yaml
 4. ~/.config/researcher/config.yaml
-5. ~/.researcher/config.yaml
 ```
 
-`~/.researcher/config.yaml` is supported as a fallback, but the default generated config should be `~/.config/researcher/config.yaml`.
+The default generated config should be `~/.config/researcher/config.yaml`. Do not add a second home-directory config location.
 
 Value precedence:
 

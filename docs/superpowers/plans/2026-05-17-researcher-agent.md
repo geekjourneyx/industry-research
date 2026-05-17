@@ -208,7 +208,6 @@ Default config lookup order:
 2. RESEARCHER_CONFIG
 3. $XDG_CONFIG_HOME/researcher/config.yaml
 4. ~/.config/researcher/config.yaml
-5. ~/.researcher/config.yaml
 ```
 
 Value precedence:
@@ -258,7 +257,6 @@ func TestDefaultSearchPaths(t *testing.T) {
 	want := []string{
 		"/tmp/xdg/researcher/config.yaml",
 		"/home/alice/.config/researcher/config.yaml",
-		"/home/alice/.researcher/config.yaml",
 	}
 	for i := range want {
 		if paths[i] != want[i] {
@@ -366,7 +364,6 @@ func DefaultSearchPaths(home string, xdgConfigHome string) []string {
 	}
 	if home != "" {
 		paths = append(paths, filepath.Join(home, ".config", "researcher", "config.yaml"))
-		paths = append(paths, filepath.Join(home, ".researcher", "config.yaml"))
 	}
 	return paths
 }
