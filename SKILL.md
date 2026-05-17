@@ -102,6 +102,16 @@ description: |
 
 官方宣发和媒体报道只能作为线索，不能单独支撑高置信度经营结论。
 
+### 子 Agent 公共证据规则
+
+当实体证据计划适用时，向子 Agent 下发 prompt 时**必须自动附加**以下三条规则：
+
+1. 经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
+2. 对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
+3. 如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+
+下文各步骤的 prompt 模板中，标记 `{证据规则}` 的位置表示这三条规则必须被完整插入。不再逐处重复。
+
 ---
 
 ## 执行流程
@@ -352,9 +362,7 @@ prompt: |
   如果现有幽灵卡片存在且有效，则复用（reuse）其结构，只在必要时修补；只有在缺失或无效时才重新生成。
   请严格按照 Agent 指令中的输出格式产出幽灵卡片 JSON。
   如果实体证据计划适用，幽灵卡片中的行动标题必须是可验证的经营命题，而不是泛泛的市场规模或行业热度判断。
-  如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
-  如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  {证据规则}
   将结果保存到 {workspace_dir}/ghost_deck.json
 ```
 
@@ -391,9 +399,7 @@ prompt: |
   - 工作目录：{workspace_dir}
 
   使用 web_fetch 抓取支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
-  如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
-  如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  {证据规则}
   将结果保存到 {workspace_dir}/blue_r1.json
 ```
 
@@ -414,9 +420,7 @@ prompt: |
   - 工作目录：{workspace_dir}
 
   使用 web_fetch 抓取支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
-  如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
-  如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  {证据规则}
   将结果保存到 {workspace_dir}/red_r1.json
 ```
 
@@ -465,9 +469,7 @@ prompt: |
   2. 用新数据加固你的做多论点
   3. 对红方合理的风险，承认存在但论证可管理性
   4. 输出格式参见 agents/blue-team.md 的第二轮反驳指引
-  5. 如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  6. 对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
-  7. 如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  5. {证据规则}
 
   将结果保存到 {workspace_dir}/blue_r2.json
 ```
@@ -492,9 +494,7 @@ prompt: |
   2. 攻击蓝方因果链条中的逻辑跳跃
   3. 质疑蓝方最脆弱的关键假设
   4. 输出格式参见 agents/red-team.md 的第二轮攻击指引
-  5. 如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  6. 对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段中保留 actually accessed URLs。
-  7. 如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  5. {证据规则}
 
   将结果保存到 {workspace_dir}/red_r2.json
 ```
@@ -536,9 +536,7 @@ prompt: |
   - 执行模式：normal|degraded
   - 降级标签：{degradation_tags，例如 ["entity_mapping", "ghost_deck_generation", "round1_missing_side", "round2_missing_side"]}
 
-  如果实体证据计划适用，经营痕迹优先于媒体/市场叙事；官方宣发和媒体报道只能作为线索，除非已经被独立证据交叉验证。
-  对每个关键命题，必须把支撑来源标记为 `operating_trace|strong_lead|weak_lead`，并在证据字段、source 字段或附录中保留 actually accessed URLs。
-  如果某个经营命题仅依赖 `weak_lead`，不得输出为高置信度经营结论，必须降级为 `UNVERIFIED_NARRATIVE`、`SUSPENDED_JUDGMENT` 或同等低置信度状态。
+  {证据规则}
   如果 `degradation_tags` 包含 `entity_mapping`，必须在报告和元数据中明确哪些经营命题只达到了降级版实体映射标准，哪些结论因此只能保持中低置信度。
 
   请产出：
