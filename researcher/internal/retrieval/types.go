@@ -10,6 +10,7 @@ const (
 	ProviderTypeAgentNativeSearch  ProviderType = "agent_native_search"
 	ProviderTypeBrowserVerify      ProviderType = "browser_verification"
 	ProviderTypeKnowledgeRetrieval ProviderType = "knowledge_retrieval"
+	ProviderTypeMulti              ProviderType = "multi"
 )
 
 type Mode string
@@ -41,6 +42,16 @@ type RetrievalResponse struct {
 	Answer         Answer          `json:"answer"`
 	Usage          map[string]any  `json:"usage"`
 	Errors         []Error         `json:"errors"`
+}
+
+type MultiResponse struct {
+	Provider        string              `json:"provider"`
+	ProviderType    ProviderType        `json:"provider_type"`
+	Mode            Mode                `json:"mode"`
+	Query           string              `json:"query"`
+	RetrievedAt     time.Time           `json:"retrieved_at"`
+	ProviderResults []RetrievalResponse `json:"provider_results"`
+	Errors          []Error             `json:"errors"`
 }
 
 type RetrievalCall struct {
