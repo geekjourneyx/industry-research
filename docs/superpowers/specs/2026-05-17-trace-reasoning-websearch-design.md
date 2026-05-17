@@ -126,7 +126,7 @@ Required first-version commands:
 
 ```bash
 websearch bocha "瑞幸 2026 门店数 招聘 扩张" --count 10 --json
-websearch volcengine "瑞幸 2026 开店计划 供应链" --count 10 --json
+websearch volcengine "瑞幸 2026 开店计划 供应链" --limit 10 --max-keyword 3 --json
 websearch multi "瑞幸 2026 门店数" --providers bocha,volcengine --count 10 --json
 websearch version
 websearch help
@@ -137,20 +137,65 @@ Optional flags for version one:
 ```text
 --count N
 --freshness oneDay|oneWeek|oneMonth|oneYear|noLimit
+--summary true|false
+--include domain1,domain2
+--exclude domain1,domain2
+--limit N
+--max-keyword N
+--max-tool-calls N
+--sources search_engine,toutiao,douyin,moji
+--location-country VALUE
+--location-region VALUE
+--location-city VALUE
+--model VALUE
 --timeout 15s
 --raw-output PATH
 --json
 --pretty
 ```
 
+Provider-specific flag behavior:
+
+```text
+bocha:
+  uses --count, --freshness, --summary, --include, --exclude, --timeout, --raw-output, --json, --pretty
+
+volcengine:
+  uses --limit, --max-keyword, --max-tool-calls, --sources, --location-*, --model, --timeout, --raw-output, --json, --pretty
+
+multi:
+  accepts common intent flags and maps them per provider:
+    --count N maps to Bocha count and Volcengine limit unless provider-specific flags are supplied later
+    --freshness only applies to providers that support time filtering
+    --sources only applies to providers that support source routing
+```
+
+The CLI should reject unsupported provider/flag combinations with a clear `invalid_argument` error. Silent ignoring is not agent-friendly because agents may believe a constraint was applied when it was not.
+
 Provider keys are read from environment variables:
 
 ```text
 BOCHA_API_KEY
-VOLCENGINE_WEBSEARCH_API_KEY
+ARK_API_KEY
 ```
 
 The CLI must not prompt interactively. Missing credentials return a structured error and non-zero exit code.
+
+### Provider Classes
+
+The CLI must support two provider classes.
+
+Direct search providers return search results directly from a search endpoint. Bocha is a direct search provider.
+
+Model-mediated search providers expose search through a model response API. Volcengine Web Search in the provided documentation is model-mediated: the request goes to the Ark Responses API, the model decides whether to invoke `web_search`, and the response contains search-call events, answer text, annotations, and usage details. The CLI must not pretend that Volcengine returns the same raw list shape as Bocha. It should normalize what is observable and preserve provider-specific metadata.
+
+Provider class field:
+
+```json
+{
+  "provider_class": "direct_search|model_mediated_search"
+}
+```
 
 ### Output Contract
 
@@ -159,24 +204,106 @@ Successful search output:
 ```json
 {
   "provider": "bocha",
+  "provider_class": "direct_search",
   "query": "瑞幸 2026 门店数 招聘 扩张",
   "searched_at": "2026-05-17T10:00:00+08:00",
   "request": {
     "count": 10,
-    "freshness": "oneYear"
+    "freshness": "oneYear",
+    "summary": true,
+    "include": [],
+    "exclude": []
   },
+  "search_calls": [
+    {
+      "call_id": "bocha_http_001",
+      "query": "瑞幸 2026 门店数 招聘 扩张",
+      "status": "completed",
+      "provider_action": "web-search"
+    }
+  ],
   "results": [
     {
       "rank": 1,
       "title": "示例标题",
       "url": "https://example.com/article",
+      "display_url": "https://example.com/article",
       "site_name": "example.com",
+      "site_icon": "",
       "snippet": "搜索结果摘要",
       "summary": "供应商提供的摘要，如有",
       "published_at": "2026-04-01T00:00:00+08:00",
-      "provider_metadata": {}
+      "last_crawled_at": "2026-04-01T00:00:00+08:00",
+      "language": "zh",
+      "content_type": "web_page",
+      "source_confidence_hint": "lead_only",
+      "provider_metadata": {
+        "bocha_id": "provider result id when present",
+        "cached_page_url": "",
+        "is_navigational": false,
+        "is_family_friendly": true
+      }
     }
   ],
+  "images": [],
+  "answer_text": "",
+  "usage": {},
+  "errors": []
+}
+```
+
+Volcengine model-mediated output:
+
+```json
+{
+  "provider": "volcengine",
+  "provider_class": "model_mediated_search",
+  "query": "瑞幸 2026 开店计划 供应链",
+  "searched_at": "2026-05-17T10:00:00+08:00",
+  "request": {
+    "model": "doubao-seed-2-0-lite-260215",
+    "limit": 10,
+    "max_keyword": 3,
+    "max_tool_calls": 3,
+    "sources": ["search_engine", "toutiao", "douyin"],
+    "user_location": {
+      "country": "中国",
+      "region": "浙江",
+      "city": "杭州"
+    }
+  },
+  "search_calls": [
+    {
+      "call_id": "ws_001",
+      "query": "瑞幸 2026 开店计划 供应链",
+      "status": "completed",
+      "provider_action": "web_search"
+    }
+  ],
+  "results": [
+    {
+      "rank": 1,
+      "title": "从 annotation 或引用中提取的标题，如可用",
+      "url": "https://example.com/source",
+      "display_url": "https://example.com/source",
+      "site_name": "example.com",
+      "snippet": "从 annotation 周边文本或模型输出中提取的摘要，如可用",
+      "summary": "",
+      "published_at": "",
+      "content_type": "annotation_url",
+      "source_confidence_hint": "lead_only",
+      "provider_metadata": {
+        "annotation_index": 0,
+        "source": "search_engine|toutiao|douyin|moji|unknown"
+      }
+    }
+  ],
+  "images": [],
+  "answer_text": "模型基于联网搜索生成的回答文本。只能作为线索，不能直接当证据。",
+  "usage": {
+    "tool_usage": {"web_search": 2},
+    "tool_usage_details": {"web_search": {"search_engine": 2, "toutiao": 1}}
+  },
   "errors": []
 }
 ```
@@ -186,6 +313,7 @@ Multi-provider output:
 ```json
 {
   "provider": "multi",
+  "provider_class": "multi",
   "query": "瑞幸 2026 门店数",
   "searched_at": "2026-05-17T10:00:00+08:00",
   "request": {
@@ -196,10 +324,12 @@ Multi-provider output:
   "provider_results": [
     {
       "provider": "bocha",
+      "provider_class": "direct_search",
       "results": []
     },
     {
       "provider": "volcengine",
+      "provider_class": "model_mediated_search",
       "results": []
     }
   ],
@@ -212,6 +342,7 @@ Failure output goes to stdout only when `--json` is requested, and diagnostics s
 ```json
 {
   "provider": "bocha",
+  "provider_class": "direct_search",
   "query": "瑞幸",
   "searched_at": "2026-05-17T10:00:00+08:00",
   "request": {},
@@ -220,7 +351,8 @@ Failure output goes to stdout only when `--json` is requested, and diagnostics s
     {
       "code": "missing_api_key",
       "message": "BOCHA_API_KEY is not set",
-      "retryable": false
+      "retryable": false,
+      "agent_action": "Set BOCHA_API_KEY or rerun with another provider."
     }
   ]
 }
@@ -237,6 +369,89 @@ Exit codes:
 5 timeout
 6 partial multi-provider failure
 ```
+
+Error object contract:
+
+```json
+{
+  "code": "missing_api_key|invalid_argument|provider_http_error|provider_auth_error|provider_quota_exhausted|provider_rate_limited|provider_timeout|provider_unavailable|provider_parse_error|no_search_triggered|partial_failure",
+  "message": "Human-readable error for agents and logs.",
+  "provider_status": 429,
+  "provider_code": "429",
+  "provider_log_id": "c66aac17eab1bb7e",
+  "retryable": true,
+  "agent_action": "Wait and retry with lower count, or use another provider.",
+  "raw_error_path": "workspace/search/raw/bocha-error-001.json"
+}
+```
+
+Agent-facing errors must say what to do next. A bare provider error is not enough.
+
+### Extensibility Model
+
+Every provider must implement the same internal interface:
+
+```go
+type Provider interface {
+    Name() string
+    Class() ProviderClass
+    Search(ctx context.Context, req SearchRequest) (SearchResponse, error)
+    Capabilities() ProviderCapabilities
+}
+```
+
+Capabilities should be machine-readable:
+
+```json
+{
+  "provider": "bocha",
+  "provider_class": "direct_search",
+  "supports_freshness": true,
+  "supports_include_domains": true,
+  "supports_exclude_domains": true,
+  "supports_summary": true,
+  "supports_location": false,
+  "supports_sources": false,
+  "supports_images": true,
+  "supports_model_choice": false,
+  "result_kinds": ["web_page", "image"]
+}
+```
+
+```json
+{
+  "provider": "volcengine",
+  "provider_class": "model_mediated_search",
+  "supports_freshness": false,
+  "supports_include_domains": false,
+  "supports_exclude_domains": false,
+  "supports_summary": false,
+  "supports_location": true,
+  "supports_sources": true,
+  "supports_images": false,
+  "supports_model_choice": true,
+  "result_kinds": ["annotation_url", "answer_text", "search_call"]
+}
+```
+
+The CLI should expose capabilities:
+
+```bash
+websearch capabilities --json
+websearch capabilities bocha --json
+```
+
+This lets agents decide which provider fits a search purpose without memorizing provider quirks.
+
+Future providers such as Baidu, Jina, Brave, Tavily, or browser-verification adapters must map into the same envelope and declare their capabilities. Provider-specific fields must stay inside `provider_metadata`; the top-level response should remain stable.
+
+Backward compatibility rule:
+
+- New fields may be added.
+- Existing fields must not change meaning.
+- Provider-specific fields must not become required for all providers.
+- Unknown provider metadata must be preserved by consumers.
+- The `provider_class`, `results`, `search_calls`, `errors`, and `usage` fields are stable integration points.
 
 ### Go Project Practices
 
@@ -282,7 +497,62 @@ Package boundaries:
 
 ### Bocha
 
-Bocha exposes a Web Search API at `https://api.bochaai.com/v1/web-search` and returns structured web page results including name/title, URL, site name, snippet, summary, and publish date where available.
+Bocha exposes a Web Search API at `https://api.bocha.cn/v1/web-search` and returns structured web page results including `name`, `url`, `displayUrl`, `snippet`, `summary`, `siteName`, `siteIcon`, `datePublished`, and `dateLastCrawled` where available.
+
+Request mapping:
+
+```text
+CLI --count       -> Bocha count
+CLI --freshness   -> Bocha freshness: noLimit|oneDay|oneWeek|oneMonth|oneYear
+CLI --summary     -> Bocha summary
+CLI --include     -> Bocha include, comma-separated or pipe-separated domains
+CLI --exclude     -> Bocha exclude, comma-separated or pipe-separated domains
+```
+
+Validation rules:
+
+- `query` is required and must not be empty after trimming whitespace.
+- `count` must be clamped or rejected outside the documented range. The implementation should default to rejecting invalid values so agents see bad parameters early.
+- `include` and `exclude` accept at most 100 domains each.
+- `summary` should default to `true` for agent-facing research because summaries are useful leads, but the result must still be labeled `lead_only`.
+
+Response mapping:
+
+```text
+webPages.value[].name             -> results[].title
+webPages.value[].url              -> results[].url
+webPages.value[].displayUrl       -> results[].display_url
+webPages.value[].snippet          -> results[].snippet
+webPages.value[].summary          -> results[].summary
+webPages.value[].siteName         -> results[].site_name
+webPages.value[].siteIcon         -> results[].site_icon
+webPages.value[].datePublished    -> results[].published_at
+webPages.value[].dateLastCrawled  -> results[].last_crawled_at
+webPages.value[].cachedPageUrl    -> provider_metadata.cached_page_url
+webPages.value[].language         -> results[].language
+images.value[]                    -> images[]
+```
+
+Bocha date handling:
+
+- Prefer `datePublished` when present.
+- Treat `dateLastCrawled` carefully. The provided Bocha documentation says values such as `2025-02-23T08:18:30Z` actually represent UTC+8 Beijing time, not UTC. The provider mapper must normalize this to `2025-02-23T08:18:30+08:00` when the value has the documented shape and `datePublished` is absent.
+- Preserve the raw value in `provider_metadata.raw_date_last_crawled`.
+
+Bocha error mapping:
+
+```text
+HTTP 400 Missing parameter query        -> invalid_argument, retryable false
+HTTP 400 API KEY missing                -> missing_api_key, retryable false
+HTTP 401 Invalid API KEY                -> provider_auth_error, retryable false
+HTTP 403 not enough money               -> provider_quota_exhausted, retryable false
+HTTP 429 request limit reached          -> provider_rate_limited, retryable true
+HTTP 500 provider exception             -> provider_unavailable, retryable true
+Network timeout                         -> provider_timeout, retryable true
+JSON parse failure                      -> provider_parse_error, retryable false unless raw body indicates transient provider failure
+```
+
+For Bocha, `provider_log_id` must be populated from `log_id` when present.
 
 Use Bocha primarily for:
 
@@ -292,12 +562,77 @@ Use Bocha primarily for:
 
 ### Volcengine
 
-Volcengine documents联网搜索 as a real-time search capability for deep research scenarios, including dynamic information acquisition, search strategy planning, multi-source integration, and structured report inputs. Some Volcengine documentation pages require JavaScript, so the CLI implementation should be based on the actual API reference available during implementation and verified with a live credential or mocked provider response.
+Volcengine documents联网搜索 as a Responses API `web_search` tool. This is model-mediated search, not a direct search endpoint like Bocha.
+
+Request shape:
+
+```text
+POST https://ark.cn-beijing.volces.com/api/v3/responses
+Authorization: Bearer $ARK_API_KEY
+Content-Type: application/json
+```
+
+The CLI should use non-streaming mode by default for easier JSON normalization. Streaming can be added later, but version one should avoid it unless needed for debugging.
+
+Required request mapping:
+
+```text
+CLI query              -> input user message
+CLI --model            -> Responses model, default doubao-seed-2-0-lite-260215
+CLI --limit            -> tools[0].limit
+CLI --max-keyword      -> tools[0].max_keyword
+CLI --max-tool-calls   -> max_tool_calls
+CLI --sources          -> tools[0].sources
+CLI --location-*       -> tools[0].user_location
+```
+
+Volcengine parameters:
+
+- `max_keyword`: controls how many search keywords the model may use in a round. Documented range is `1` to `50`; default should be `3`.
+- `limit`: controls how many results each search operation returns. Documented range is `1` to `50`, but single searches may return at most 20. Default should be `10`.
+- `max_tool_calls`: controls how many web-search rounds the model may execute. Documented range is `1` to `10`; default should be `3`.
+- `sources`: may include `toutiao`, `douyin`, and `moji`. The default web source is `search_engine`; it may appear in usage details even when not explicitly listed.
+- `user_location`: optional approximate country, region, and city.
+- `caching`: must not be sent because the documentation says it currently returns a `400` error.
+
+Response extraction:
+
+- Extract `web_search_call` items and their `action.query` values into `search_calls`.
+- Extract `message.content[0].annotations` URLs into `results`.
+- Preserve final answer text in `answer_text`.
+- Preserve `usage.tool_usage` and `usage.tool_usage_details`.
+- If no `web_search_call` occurred, return `no_search_triggered` with exit code `3` unless the caller used a future `--allow-no-search` flag.
+- Because the model controls whether search is triggered and which keywords are used, record both requested query and actual search queries.
+
+Volcengine result confidence:
+
+- `answer_text` is never evidence by itself.
+- Annotation URLs are leads until the source pages are opened or independently confirmed.
+- The result should carry `source_confidence_hint: "lead_only"` by default.
+
+Volcengine error mapping:
+
+```text
+Missing ARK_API_KEY                   -> missing_api_key, retryable false
+HTTP 400 invalid request/caching      -> invalid_argument, retryable false
+HTTP 401/403 auth or permission       -> provider_auth_error, retryable false
+HTTP 429 or QPS exceeded              -> provider_rate_limited, retryable true
+Network timeout                       -> provider_timeout, retryable true
+Model response has no search call     -> no_search_triggered, retryable false unless query/prompt is revised
+Response lacks annotations            -> provider_parse_error or no_results, depending on response body
+```
+
+Agent action for `no_search_triggered` should recommend one of:
+
+- Rewrite the query as a search instruction.
+- Reduce ambiguity.
+- Use Bocha direct search.
+- Use agent-native web search.
 
 Use Volcengine primarily for:
 
 - Chinese real-time information.
-- ByteDance ecosystem adjacent content signals where available.
+- ByteDance ecosystem adjacent content signals where `sources` such as `toutiao` or `douyin` are useful.
 - Time-sensitive news, platform content clues, and public-domain monitoring.
 
 ### Agent-Native Web Search
@@ -323,6 +658,7 @@ It should teach agents:
 4. How to interpret search results.
 5. How to avoid mistaking search summaries for evidence.
 6. How to route results into an evidence ledger.
+7. How to recognize provider-specific limitations and ask for browser or source-page verification.
 
 Provider-selection guidance:
 
@@ -348,7 +684,46 @@ The skill must warn agents:
 - Search results are leads, not evidence.
 - Multiple search providers can still return the same underlying source.
 - A summary is not a citation.
+- Volcengine answer text is not evidence; only source annotations and subsequently opened URLs can become evidence.
+- Bocha summaries are useful for triage but remain `lead_only` until the actual source page is inspected or cross-validated.
+- `dateLastCrawled` from Bocha must not be interpreted as UTC when the mapper has normalized it from the documented UTC+8 compatibility issue.
 - Final claims must cite opened source URLs or explicitly remain unverified.
+
+Agent-friendly search workflow:
+
+```text
+1. State the claim and expected trace.
+2. Choose provider(s) and explain why.
+3. Run search.
+4. Record raw search output path if available.
+5. Convert each result into lead_only evidence.
+6. Open or otherwise verify source URLs before upgrading evidence.
+7. If provider fails, record failure and use alternate provider or lower confidence.
+8. If Volcengine does not trigger search, rewrite the query or use Bocha/direct web search.
+```
+
+The skill should prefer commands that make agent intent explicit:
+
+```bash
+websearch bocha "瑞幸 2026 门店数 招聘 扩张" \
+  --count 10 \
+  --freshness oneYear \
+  --summary true \
+  --json
+
+websearch bocha "瑞幸 门店数 site:luckincoffee.com" \
+  --include luckincoffee.com \
+  --count 10 \
+  --json
+
+websearch volcengine "搜索瑞幸咖啡近一年开店计划、供应链扩张和招聘线索，并给出引用来源" \
+  --limit 10 \
+  --max-keyword 3 \
+  --max-tool-calls 3 \
+  --sources toutiao,douyin \
+  --location-country 中国 \
+  --json
+```
 
 ## Industry Research Integration
 
@@ -420,9 +795,16 @@ Suggested schema:
         {
           "search_id": "search_001",
           "provider": "bocha",
+          "provider_class": "direct_search",
           "query": "瑞幸 2026 门店数 招聘 扩张",
           "searched_at": "2026-05-17T10:00:00+08:00",
           "purpose": "寻找门店扩张和招聘相关线索",
+          "parameters": {
+            "count": 10,
+            "freshness": "oneYear",
+            "summary": true
+          },
+          "status": "completed|failed|partial",
           "result_ref": "workspace/search/bocha-search-001.json"
         }
       ],
@@ -433,7 +815,10 @@ Suggested schema:
           "source_title": "示例来源",
           "source_type": "company_disclosure|official_registry|recruiting|map_poi|platform_frontend|media|social|legal|tender|ugc|search_result_only",
           "evidence_family": "capital_legal|people_org|physical_fulfillment|digital_frontend|terminal_feedback|management_narrative",
+          "origin_provider": "bocha|volcengine|agent_websearch|browser|manual",
+          "origin_search_id": "search_001",
           "accessed_at": "2026-05-17T10:10:00+08:00",
+          "verification_status": "search_result_only|source_opened|browser_verified|cross_validated|not_accessible",
           "independence_note": "不是公司通稿转载，独立于财报口径",
           "supports_or_challenges": "supports|challenges|mixed|lead_only",
           "summary": "这条证据说明了什么",
@@ -464,6 +849,9 @@ Rules:
 
 - `search_result_only` can never support a high-confidence claim.
 - Search summaries are `lead_only` until the source page is opened or independently confirmed.
+- Volcengine `answer_text` can guide the next search, but cannot be used as a source in the final report.
+- Bocha `summary` can guide triage, but cannot replace source-page verification.
+- A provider failure must be recorded as a search action with `status: failed`; otherwise the reader cannot distinguish "not checked" from "checked and failed".
 - A high-confidence claim must have at least three independent evidence families unless the report explains a domain-specific reason for a different threshold.
 - A claim with no disconfirmation attempt cannot be high confidence.
 - If a needed source requires browser interaction, the ledger must mark it.
@@ -549,8 +937,12 @@ Required checks:
 - Every major claim has expected traces.
 - Every evidence item maps to a claim.
 - Every search action has provider, query, purpose, and timestamp.
+- Every search action records provider class and status.
+- Provider errors include `agent_action`.
 - High-confidence claims have enough independent evidence families.
 - Search-result-only evidence is not used as a high-confidence source.
+- Volcengine answer text is not cited as evidence.
+- Bocha summaries are not cited as final evidence unless the source page has been opened or cross-validated.
 - Claims without disconfirmation attempts are downgraded.
 - Browser-required evidence is clearly marked.
 
@@ -576,7 +968,9 @@ Each eval should expect:
 
 ## External References
 
-- Bocha Open Platform documents Web Search API shape and endpoint examples: `https://open.bochaai.com/`
+- `docs/bocha_websearch.md` documents Bocha Web Search request parameters, response fields, endpoint `https://api.bocha.cn/v1/web-search`, date handling caveat, and error codes.
+- `docs/volcengine_websearch.md` documents Volcengine Ark Responses API Web Search tool behavior, tool parameters, sources, location, usage fields, and model-mediated search-call output.
+- Bocha Open Platform documents Web Search API shape and endpoint examples: `https://open.bocha.cn/`
 - OpenAI documents the Responses API `web_search` tool, citations, sources, domain filtering, and live access controls: `https://developers.openai.com/api/docs/guides/tools-web-search`
 - Volcengine documents联网搜索 as a deep-research capability with real-time data access, search strategy planning, multi-source verification, and structured report output: `https://www.volcengine.com/docs/85637/1588465`
 - Volcengine联网搜索 API reference page exists but currently requires JavaScript for full details in this environment: `https://www.volcengine.com/docs/87772/2272953`
@@ -586,12 +980,14 @@ Each eval should expect:
 The design is successful when:
 
 1. `websearch` can be implemented as an independent Go CLI without depending on `industry-research`.
-2. Bocha and Volcengine providers can emit the same normalized JSON structure.
+2. Bocha and Volcengine providers can emit the same normalized envelope while preserving their provider-class differences.
 3. `industry-research` can consume search outputs without knowing provider internals.
 4. Chain-brand reports show claim-to-trace reasoning before conclusions.
 5. Search results are treated as leads until source evidence is verified.
 6. Confidence scores are tied to evidence-family independence and disconfirmation attempts.
 7. The agent remains free to choose sources, but cannot skip explaining why those sources fit the claim.
+8. Provider errors are agent-actionable rather than raw HTTP messages only.
+9. Volcengine model-mediated outputs are not misrepresented as direct search-result lists.
 
 ## Non-Goals
 
