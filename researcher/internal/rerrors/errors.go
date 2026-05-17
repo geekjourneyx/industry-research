@@ -12,6 +12,7 @@ const (
 	CodeProviderParseError     = "provider_parse_error"
 	CodeNoRetrievalTriggered   = "no_retrieval_triggered"
 	CodePartialFailure         = "partial_failure"
+	CodeRequestCanceled        = "request_canceled"
 )
 
 const (
