@@ -6,7 +6,7 @@
 
 **Architecture:** Create an independent Go module under `researcher/` with provider-neutral research types, Bocha and Volcengine provider modules, trace-reasoning artifacts, evidence ledger, confidence rules, and CLI commands. Then redesign `industry-research/SKILL.md` into a thinner domain entrypoint that calls `researcher` and validates its artifacts.
 
-**Tech Stack:** Go 1.22+ standard library, `net/http`, `encoding/json`, shell Makefile targets modeled after `~/Workspace/go/md2wechat-skill/Makefile`, existing Markdown skill files and Python report validator.
+**Tech Stack:** Go 1.22+, `net/http`, `encoding/json`, `gopkg.in/yaml.v3` for config files, shell Makefile targets modeled after `~/Workspace/go/md2wechat-skill/Makefile`, existing Markdown skill files and Python report validator.
 
 ---
 
@@ -29,6 +29,7 @@ researcher/
   cmd/researcher/main.go
   internal/cli/cli.go
   internal/config/config.go
+  internal/config/config_test.go
   internal/rerrors/errors.go
   internal/retrieval/types.go
   internal/retrieval/capabilities.go
@@ -75,8 +76,10 @@ The existing `agents/*.md` files should be updated only after the CLI artifact w
 - Create: `researcher/Makefile`
 - Create: `researcher/README.md`
 - Create: `researcher/cmd/researcher/main.go`
+- Create: `researcher/internal/config/config.go`
+- Test: `researcher/internal/config/config_test.go`
 - Create: `researcher/internal/cli/cli.go`
-- Test: manual `make build`, `make test`, `./researcher version`
+- Test: `go test ./internal/config`, manual `make build`, `make test`, `./researcher version`
 
 - [ ] **Step 1: Create the module files**
 
@@ -86,6 +89,8 @@ Use `apply_patch` to create `researcher/go.mod`:
 module github.com/geekjourneyx/researcher
 
 go 1.22
+
+require gopkg.in/yaml.v3 v3.0.1
 ```
 
 Create `researcher/VERSION`:
@@ -193,12 +198,241 @@ Environment variables:
 ```text
 BOCHA_API_KEY
 ARK_API_KEY
+RESEARCHER_CONFIG
+```
+
+Default config lookup order:
+
+```text
+1. --config <path>
+2. RESEARCHER_CONFIG
+3. $XDG_CONFIG_HOME/researcher/config.yaml
+4. ~/.config/researcher/config.yaml
+5. ~/.researcher/config.yaml
+```
+
+Value precedence:
+
+```text
+1. command flags
+2. environment variables
+3. config file
+4. built-in defaults
+```
+
+Example `config.yaml`:
+
+```yaml
+providers:
+  bocha:
+    api_key: ""
+    endpoint: "https://api.bochaai.com/v1/web-search"
+  volcengine:
+    api_key: ""
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses"
+    model: "doubao-seed-2-0-lite-260215"
+defaults:
+  providers: ["bocha", "volcengine"]
+  depth: "standard"
+  workspace_root: "researcher-workspace"
 ```
 
 Search results and model answers are leads, not evidence. Evidence confidence is assigned only after source opening, browser verification, or cross-validation.
 ```
 
-- [ ] **Step 4: Create CLI entrypoint**
+- [ ] **Step 4: Create config loader**
+
+Create `researcher/internal/config/config_test.go`:
+
+```go
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestDefaultSearchPaths(t *testing.T) {
+	paths := DefaultSearchPaths("/home/alice", "/tmp/xdg")
+	want := []string{
+		"/tmp/xdg/researcher/config.yaml",
+		"/home/alice/.config/researcher/config.yaml",
+		"/home/alice/.researcher/config.yaml",
+	}
+	for i := range want {
+		if paths[i] != want[i] {
+			t.Fatalf("path %d: got %q want %q", i, paths[i], want[i])
+		}
+	}
+}
+
+func TestEnvOverridesConfigAPIKeys(t *testing.T) {
+	cfg := Config{}
+	cfg.Providers.Bocha.APIKey = "from-file"
+	cfg.Providers.Volcengine.APIKey = "from-file"
+	cfg = ApplyEnv(cfg, func(key string) string {
+		switch key {
+		case "BOCHA_API_KEY":
+			return "from-env-bocha"
+		case "ARK_API_KEY":
+			return "from-env-ark"
+		default:
+			return ""
+		}
+	})
+	if cfg.Providers.Bocha.APIKey != "from-env-bocha" {
+		t.Fatalf("expected bocha env override")
+	}
+	if cfg.Providers.Volcengine.APIKey != "from-env-ark" {
+		t.Fatalf("expected ark env override")
+	}
+}
+
+func TestLoadExplicitConfigPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	data := []byte("providers:\n  bocha:\n    api_key: file-key\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile error: %v", err)
+	}
+	if cfg.Providers.Bocha.APIKey != "file-key" {
+		t.Fatalf("unexpected api key: %q", cfg.Providers.Bocha.APIKey)
+	}
+}
+```
+
+Create `researcher/internal/config/config.go`:
+
+```go
+package config
+
+import (
+	"os"
+	"path/filepath"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Providers Providers `yaml:"providers" json:"providers"`
+	Defaults  Defaults  `yaml:"defaults" json:"defaults"`
+}
+
+type Providers struct {
+	Bocha      ProviderConfig `yaml:"bocha" json:"bocha"`
+	Volcengine ProviderConfig `yaml:"volcengine" json:"volcengine"`
+}
+
+type ProviderConfig struct {
+	APIKey   string `yaml:"api_key" json:"api_key"`
+	Endpoint string `yaml:"endpoint" json:"endpoint"`
+	Model    string `yaml:"model" json:"model"`
+}
+
+type Defaults struct {
+	Providers     []string `yaml:"providers" json:"providers"`
+	Depth         string   `yaml:"depth" json:"depth"`
+	WorkspaceRoot string   `yaml:"workspace_root" json:"workspace_root"`
+}
+
+func DefaultConfig() Config {
+	return Config{
+		Providers: Providers{
+			Bocha: ProviderConfig{
+				Endpoint: "https://api.bochaai.com/v1/web-search",
+			},
+			Volcengine: ProviderConfig{
+				Endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses",
+				Model:    "doubao-seed-2-0-lite-260215",
+			},
+		},
+		Defaults: Defaults{
+			Providers:     []string{"bocha", "volcengine"},
+			Depth:         "standard",
+			WorkspaceRoot: "researcher-workspace",
+		},
+	}
+}
+
+func DefaultSearchPaths(home string, xdgConfigHome string) []string {
+	paths := []string{}
+	if xdgConfigHome != "" {
+		paths = append(paths, filepath.Join(xdgConfigHome, "researcher", "config.yaml"))
+	}
+	if home != "" {
+		paths = append(paths, filepath.Join(home, ".config", "researcher", "config.yaml"))
+		paths = append(paths, filepath.Join(home, ".researcher", "config.yaml"))
+	}
+	return paths
+}
+
+func LoadFile(path string) (Config, error) {
+	cfg := DefaultConfig()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
+func LoadEffective(explicitPath string, getenv func(string) string, home string) (Config, error) {
+	cfg := DefaultConfig()
+	path := explicitPath
+	if path == "" {
+		path = getenv("RESEARCHER_CONFIG")
+	}
+	if path != "" {
+		loaded, err := LoadFile(path)
+		if err != nil {
+			return cfg, err
+		}
+		cfg = loaded
+	} else {
+		for _, candidate := range DefaultSearchPaths(home, getenv("XDG_CONFIG_HOME")) {
+			if _, err := os.Stat(candidate); err == nil {
+				loaded, err := LoadFile(candidate)
+				if err != nil {
+					return cfg, err
+				}
+				cfg = loaded
+				break
+			}
+		}
+	}
+	return ApplyEnv(cfg, getenv), nil
+}
+
+func ApplyEnv(cfg Config, getenv func(string) string) Config {
+	if value := getenv("BOCHA_API_KEY"); value != "" {
+		cfg.Providers.Bocha.APIKey = value
+	}
+	if value := getenv("ARK_API_KEY"); value != "" {
+		cfg.Providers.Volcengine.APIKey = value
+	}
+	return cfg
+}
+```
+
+Config path resolution contract:
+
+```text
+1. `--config <path>` chooses the config file path explicitly.
+2. If no `--config` is provided, `RESEARCHER_CONFIG` chooses the config file path.
+3. If neither is provided, read the first existing file from DefaultSearchPaths.
+4. If no config file exists, use built-in defaults.
+5. After loading config, apply environment variable overrides.
+6. After environment overrides, apply command flags.
+```
+
+- [ ] **Step 5: Create CLI entrypoint**
 
 Use `apply_patch` to create `researcher/cmd/researcher/main.go`:
 
@@ -258,7 +492,7 @@ func printHelp(w io.Writer) {
 }
 ```
 
-- [ ] **Step 5: Verify build**
+- [ ] **Step 6: Verify build**
 
 Run:
 
@@ -297,10 +531,10 @@ Expected:
 ?    github.com/geekjourneyx/researcher/internal/cli [no test files]
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add researcher/go.mod researcher/VERSION researcher/Makefile researcher/README.md researcher/cmd/researcher/main.go researcher/internal/cli/cli.go
+git add researcher/go.mod researcher/VERSION researcher/Makefile researcher/README.md researcher/cmd/researcher/main.go researcher/internal/config researcher/internal/cli/cli.go
 git commit -m "feat: scaffold researcher cli"
 ```
 
@@ -1076,6 +1310,8 @@ case "retrieve":
 	return runRetrieve(args[1:], stdout, stderr)
 ```
 
+Also add CLI imports for `context`, `os`, `github.com/geekjourneyx/researcher/internal/config`, `github.com/geekjourneyx/researcher/internal/provider/bocha`, and `github.com/geekjourneyx/researcher/internal/rerrors`.
+
 Add `runRetrieve` with:
 
 ```go
@@ -1096,7 +1332,13 @@ func runRetrieve(args []string, stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unsupported retrieve provider: %s\n", providers)
 		return rerrors.ExitInvalidArguments
 	}
-	client := bocha.NewClient(os.Getenv("BOCHA_API_KEY"), "", nil)
+	home, _ := os.UserHomeDir()
+	cfg, cfgErr := config.LoadEffective(flagValue(args[1:], "--config"), os.Getenv, home)
+	if cfgErr != nil {
+		fmt.Fprintf(stderr, "load config: %v\n", cfgErr)
+		return rerrors.ExitInvalidArguments
+	}
+	client := bocha.NewClient(cfg.Providers.Bocha.APIKey, cfg.Providers.Bocha.Endpoint, nil)
 	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{
 		Provider: "bocha",
 		Mode:     retrieval.ModeSearch,
@@ -1563,6 +1805,8 @@ case "answer":
 	return runAnswer(args[1:], stdout, stderr)
 ```
 
+Also add CLI imports for `github.com/geekjourneyx/researcher/internal/provider/volcengine` and reuse the existing `config`, `context`, `os`, `retrieval`, `output`, and `rerrors` imports.
+
 Implement `runAnswer` with:
 
 ```go
@@ -1577,9 +1821,15 @@ func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unsupported answer provider: %s\n", provider)
 		return rerrors.ExitInvalidArguments
 	}
-	client := volcengine.NewClient(os.Getenv("ARK_API_KEY"), "", nil)
+	home, _ := os.UserHomeDir()
+	cfg, cfgErr := config.LoadEffective(flagValue(args[2:], "--config"), os.Getenv, home)
+	if cfgErr != nil {
+		fmt.Fprintf(stderr, "load config: %v\n", cfgErr)
+		return rerrors.ExitInvalidArguments
+	}
+	client := volcengine.NewClient(cfg.Providers.Volcengine.APIKey, cfg.Providers.Volcengine.Endpoint, nil)
 	params := map[string]any{
-		"model":          flagValueDefault(args[2:], "--model", "doubao-seed-2-0-lite-260215"),
+		"model":          flagValueDefault(args[2:], "--model", cfg.Providers.Volcengine.Model),
 		"limit":          intFlag(args[2:], "--limit", 10),
 		"max_keyword":    intFlag(args[2:], "--max-keyword", 3),
 		"max_tool_calls": intFlag(args[2:], "--max-tool-calls", 3),

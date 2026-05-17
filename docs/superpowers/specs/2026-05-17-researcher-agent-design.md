@@ -217,6 +217,54 @@ capabilities
   Lists provider capabilities and supported domains.
 ```
 
+## Configuration
+
+Default config file lookup should follow Unix/XDG conventions while keeping a compatibility fallback:
+
+```text
+1. --config <path>
+2. RESEARCHER_CONFIG
+3. $XDG_CONFIG_HOME/researcher/config.yaml
+4. ~/.config/researcher/config.yaml
+5. ~/.researcher/config.yaml
+```
+
+`~/.researcher/config.yaml` is supported as a fallback, but the default generated config should be `~/.config/researcher/config.yaml`.
+
+Value precedence:
+
+```text
+1. command flags
+2. environment variables
+3. config file
+4. built-in defaults
+```
+
+Environment variables should override config file secrets:
+
+```text
+BOCHA_API_KEY
+ARK_API_KEY
+RESEARCHER_CONFIG
+```
+
+Example config:
+
+```yaml
+providers:
+  bocha:
+    api_key: ""
+    endpoint: "https://api.bochaai.com/v1/web-search"
+  volcengine:
+    api_key: ""
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses"
+    model: "doubao-seed-2-0-lite-260215"
+defaults:
+  providers: ["bocha", "volcengine"]
+  depth: "standard"
+  workspace_root: "researcher-workspace"
+```
+
 ## Unix Philosophy
 
 Although `researcher` is higher-level than a pure retrieval tool, each command should remain composable:
