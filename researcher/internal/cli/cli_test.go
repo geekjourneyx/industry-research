@@ -307,3 +307,20 @@ func TestRunRetrieveInvalidCountReturnsInvalidArguments(t *testing.T) {
 		t.Fatalf("stderr = %q, want invalid count error", stderr.String())
 	}
 }
+
+func TestRunRetrieveEmptyCountReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"retrieve", "test", "--count=", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "invalid --count") {
+		t.Fatalf("stderr = %q, want invalid count error", stderr.String())
+	}
+}

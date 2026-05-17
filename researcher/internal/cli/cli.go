@@ -184,8 +184,8 @@ func flagValueDefault(args []string, name string, fallback string) string {
 }
 
 func intFlag(args []string, name string, fallback int) (int, error) {
-	value := flagValue(args, name)
-	if value == "" {
+	value, found := flagValuePresent(args, name)
+	if !found {
 		return fallback, nil
 	}
 	parsed, err := strconv.Atoi(value)
@@ -193,6 +193,19 @@ func intFlag(args []string, name string, fallback int) (int, error) {
 		return 0, fmt.Errorf("invalid %s: %q", name, value)
 	}
 	return parsed, nil
+}
+
+func flagValuePresent(args []string, name string) (string, bool) {
+	for i, arg := range args {
+		if arg == name && i+1 < len(args) {
+			return args[i+1], true
+		}
+		prefix := name + "="
+		if strings.HasPrefix(arg, prefix) {
+			return strings.TrimPrefix(arg, prefix), true
+		}
+	}
+	return "", false
 }
 
 func parseRetrieveArgs(args []string) (string, error) {
