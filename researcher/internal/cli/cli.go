@@ -11,6 +11,7 @@ import (
 	"github.com/geekjourneyx/researcher/internal/config"
 	"github.com/geekjourneyx/researcher/internal/output"
 	"github.com/geekjourneyx/researcher/internal/provider/bocha"
+	"github.com/geekjourneyx/researcher/internal/provider/volcengine"
 	"github.com/geekjourneyx/researcher/internal/rerrors"
 	"github.com/geekjourneyx/researcher/internal/retrieval"
 )
@@ -32,6 +33,8 @@ func Run(args []string, version string, stdout io.Writer, stderr io.Writer) int 
 		return runCapabilities(args[1:], stdout, stderr)
 	case "retrieve":
 		return runRetrieve(args[1:], stdout, stderr)
+	case "answer":
+		return runAnswer(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command: %s\n\n", args[0])
 		printHelp(stderr)
@@ -150,6 +153,78 @@ func runRetrieve(args []string, stdout io.Writer, stderr io.Writer) int {
 	return rerrors.ExitSuccess
 }
 
+func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
+	formatJSON := hasFlag(args, "--json")
+	pretty := hasFlag(args, "--pretty")
+
+	provider, query, err := parseAnswerArgs(args)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	if provider != "volcengine" {
+		fmt.Fprintf(stderr, "unsupported provider: %s\n", provider)
+		return rerrors.ExitInvalidArguments
+	}
+
+	limit, err := intFlag(args, "--limit", 10)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	maxKeyword, err := intFlag(args, "--max-keyword", 3)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	maxToolCalls, err := intFlag(args, "--max-tool-calls", 3)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+
+	home, _ := os.UserHomeDir()
+	cfg, err := config.LoadEffective(flagValue(args, "--config"), os.Getenv, home)
+	if err != nil {
+		fmt.Fprintf(stderr, "load config: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+
+	model := flagValueDefault(args, "--model", cfg.Providers.Volcengine.Model)
+	parameters := map[string]any{
+		"model":          model,
+		"limit":          limit,
+		"max_keyword":    maxKeyword,
+		"max_tool_calls": maxToolCalls,
+	}
+	if sources := splitCommaFlag(flagValue(args, "--sources")); len(sources) > 0 {
+		parameters["sources"] = sources
+	}
+
+	req := retrieval.RetrievalRequest{
+		Provider:     "volcengine",
+		ProviderType: retrieval.ProviderTypeModelAnswerSearch,
+		Mode:         retrieval.ModeAnswer,
+		Query:        query,
+		Parameters:   parameters,
+	}
+	client := volcengine.NewClient(cfg.Providers.Volcengine.APIKey, cfg.Providers.Volcengine.Endpoint, nil)
+	resp, answerErr := client.Answer(context.Background(), req)
+	if formatJSON || answerErr != nil {
+		if err := output.WriteJSON(stdout, resp, pretty); err != nil {
+			fmt.Fprintf(stderr, "write retrieval response: %v\n", err)
+			return rerrors.ExitProviderFailed
+		}
+	}
+	if answerErr != nil {
+		return exitCodeForRetrievalErrors(resp.Errors)
+	}
+	if !formatJSON {
+		fmt.Fprintln(stdout, resp.Answer.Text)
+	}
+	return rerrors.ExitSuccess
+}
+
 func isFlag(arg string) bool {
 	return len(arg) > 0 && arg[0] == '-'
 }
@@ -197,8 +272,11 @@ func intFlag(args []string, name string, fallback int) (int, error) {
 
 func flagValuePresent(args []string, name string) (string, bool) {
 	for i, arg := range args {
-		if arg == name && i+1 < len(args) {
-			return args[i+1], true
+		if arg == name {
+			if i+1 < len(args) {
+				return args[i+1], true
+			}
+			return "", true
 		}
 		prefix := name + "="
 		if strings.HasPrefix(arg, prefix) {
@@ -255,6 +333,81 @@ func parseRetrieveArgs(args []string) (string, error) {
 	return query, nil
 }
 
+func parseAnswerArgs(args []string) (string, string, error) {
+	valueFlags := map[string]bool{
+		"--config":         true,
+		"--model":          true,
+		"--limit":          true,
+		"--max-keyword":    true,
+		"--max-tool-calls": true,
+		"--sources":        true,
+	}
+	boolFlags := map[string]bool{
+		"--json":   true,
+		"--pretty": true,
+	}
+	provider := ""
+	query := ""
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if boolFlags[arg] {
+			continue
+		}
+		if strings.Contains(arg, "=") && isFlag(arg) {
+			name := strings.SplitN(arg, "=", 2)[0]
+			if valueFlags[name] {
+				continue
+			}
+			return "", "", fmt.Errorf("unknown flag: %s", name)
+		}
+		if valueFlags[arg] {
+			i++
+			continue
+		}
+		if isFlag(arg) {
+			return "", "", fmt.Errorf("unknown flag: %s", arg)
+		}
+		value := strings.TrimSpace(arg)
+		if value == "" {
+			if provider == "" {
+				return "", "", fmt.Errorf("answer provider is required")
+			}
+			return "", "", fmt.Errorf("answer query is required")
+		}
+		if provider == "" {
+			provider = value
+			continue
+		}
+		if query == "" {
+			query = value
+			continue
+		}
+		return "", "", fmt.Errorf("unexpected argument: %s", arg)
+	}
+	if provider == "" {
+		return "", "", fmt.Errorf("answer provider is required")
+	}
+	if query == "" {
+		return "", "", fmt.Errorf("answer query is required")
+	}
+	return provider, query, nil
+}
+
+func splitCommaFlag(value string) []string {
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
 func exitCodeForRetrievalErrors(errors []retrieval.Error) int {
 	if len(errors) == 0 {
 		return rerrors.ExitProviderFailed
@@ -279,6 +432,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  help")
 	fmt.Fprintln(w, "  capabilities --json")
 	fmt.Fprintln(w, "  retrieve")
+	fmt.Fprintln(w, "  answer")
 	fmt.Fprintln(w, "  plan")
 	fmt.Fprintln(w, "  evidence")
 	fmt.Fprintln(w, "  run")

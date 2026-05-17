@@ -324,3 +324,162 @@ func TestRunRetrieveEmptyCountReturnsInvalidArguments(t *testing.T) {
 		t.Fatalf("stderr = %q, want invalid count error", stderr.String())
 	}
 }
+
+func TestRunAnswerMissingProviderReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "answer provider is required") {
+		t.Fatalf("stderr = %q, want missing provider error", stderr.String())
+	}
+}
+
+func TestRunAnswerMissingQueryReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer", "volcengine"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "answer query is required") {
+		t.Fatalf("stderr = %q, want missing query error", stderr.String())
+	}
+}
+
+func TestRunAnswerUnsupportedProviderReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer", "unknown", "瑞幸", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "unsupported provider: unknown") {
+		t.Fatalf("stderr = %q, want unsupported provider error", stderr.String())
+	}
+}
+
+func TestRunAnswerVolcengineMissingAPIKeyWritesJSONProviderFailure(t *testing.T) {
+	t.Setenv("ARK_API_KEY", "")
+	t.Setenv("RESEARCHER_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer", "volcengine", "瑞幸", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitMissingCredentials {
+		t.Fatalf("Run() code = %d, want missing credentials exit", code)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	if decoded["provider"] != "volcengine" {
+		t.Fatalf("provider = %v, want volcengine", decoded["provider"])
+	}
+	errorsValue, ok := decoded["errors"].([]any)
+	if !ok || len(errorsValue) != 1 {
+		t.Fatalf("errors = %#v, want one retrieval error", decoded["errors"])
+	}
+	firstError := errorsValue[0].(map[string]any)
+	if firstError["code"] != rerrors.CodeMissingAPIKey {
+		t.Fatalf("error code = %v, want missing_api_key", firstError["code"])
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunAnswerUnknownFlagAfterQueryReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"answer", "volcengine", "test", "--bad", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "unknown flag: --bad") {
+		t.Fatalf("stderr = %q, want unknown flag error", stderr.String())
+	}
+}
+
+func TestRunAnswerInvalidNumericFlagsReturnInvalidArguments(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "invalid limit",
+			args: []string{"answer", "volcengine", "test", "--limit", "nope", "--json"},
+			want: "invalid --limit",
+		},
+		{
+			name: "empty limit",
+			args: []string{"answer", "volcengine", "test", "--limit=", "--json"},
+			want: "invalid --limit",
+		},
+		{
+			name: "invalid max keyword",
+			args: []string{"answer", "volcengine", "test", "--max-keyword", "nope", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
+			name: "empty max keyword",
+			args: []string{"answer", "volcengine", "test", "--max-keyword=", "--json"},
+			want: "invalid --max-keyword",
+		},
+		{
+			name: "invalid max tool calls",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls", "nope", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+		{
+			name: "empty max tool calls",
+			args: []string{"answer", "volcengine", "test", "--max-tool-calls=", "--json"},
+			want: "invalid --max-tool-calls",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+
+			code := Run(tt.args, "test-version", &stdout, &stderr)
+
+			if code != rerrors.ExitInvalidArguments {
+				t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+			}
+			if stdout.String() != "" {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), tt.want) {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), tt.want)
+			}
+		})
+	}
+}
