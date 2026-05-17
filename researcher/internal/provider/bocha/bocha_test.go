@@ -118,6 +118,12 @@ func TestSearchPostsRequestAndMapsWebPages(t *testing.T) {
 	if resp.Errors == nil {
 		t.Fatalf("Errors = nil, want initialized empty slice")
 	}
+	if len(resp.RetrievalCalls) != 1 {
+		t.Fatalf("RetrievalCalls length = %d, want 1", len(resp.RetrievalCalls))
+	}
+	if resp.RetrievalCalls[0].ProviderAction != "web-search" {
+		t.Fatalf("ProviderAction = %q, want web-search", resp.RetrievalCalls[0].ProviderAction)
+	}
 }
 
 func TestNormalizeBochaTimeTreatsZAsUTCPlusEight(t *testing.T) {
@@ -193,6 +199,95 @@ func TestSearchMapsHTTP429WithNonJSONBodyToRateLimitedRetrievalError(t *testing.
 	}
 	if got.ProviderStatus != http.StatusTooManyRequests {
 		t.Fatalf("ProviderStatus = %d, want 429", got.ProviderStatus)
+	}
+}
+
+func TestSearchMapsHTTP403ToQuotaExhaustedRetrievalError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"code":403,"message":"insufficient balance","log_id":"quota-1"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", server.URL, server.Client())
+	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Search() error = nil, want provider error")
+	}
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Errors length = %d, want 1", len(resp.Errors))
+	}
+	got := resp.Errors[0]
+	if got.Code != rerrors.CodeProviderQuotaExhausted {
+		t.Fatalf("error code = %q, want provider_quota_exhausted", got.Code)
+	}
+	if got.Retryable {
+		t.Fatalf("Retryable = true, want false")
+	}
+	if !strings.Contains(strings.ToLower(got.AgentAction), "balance") {
+		t.Fatalf("AgentAction = %q, want balance guidance", got.AgentAction)
+	}
+}
+
+func TestSearchMapsHTTP400ToInvalidArgumentRetrievalError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":400,"message":"invalid request","log_id":"bad-1"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", server.URL, server.Client())
+	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Search() error = nil, want provider error")
+	}
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Errors length = %d, want 1", len(resp.Errors))
+	}
+	if resp.Errors[0].Code != rerrors.CodeInvalidArgument {
+		t.Fatalf("error code = %q, want invalid_argument", resp.Errors[0].Code)
+	}
+}
+
+func TestSearchMapsHTTP400APIKeyMessageToMissingAPIKeyRetrievalError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":400,"message":"invalid api key","log_id":"key-1"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", server.URL, server.Client())
+	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Search() error = nil, want provider error")
+	}
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Errors length = %d, want 1", len(resp.Errors))
+	}
+	if resp.Errors[0].Code != rerrors.CodeMissingAPIKey {
+		t.Fatalf("error code = %q, want missing_api_key", resp.Errors[0].Code)
+	}
+}
+
+func TestSearchSuccessfulHTTPEmptyBodyReturnsParseError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", server.URL, server.Client())
+	resp, err := client.Search(context.Background(), retrieval.RetrievalRequest{Query: "瑞幸"})
+	if err == nil {
+		t.Fatalf("Search() error = nil, want parse error")
+	}
+	if len(resp.Errors) != 1 {
+		t.Fatalf("Errors length = %d, want 1", len(resp.Errors))
+	}
+	if resp.Errors[0].Code != rerrors.CodeProviderParseError {
+		t.Fatalf("error code = %q, want provider_parse_error", resp.Errors[0].Code)
 	}
 }
 

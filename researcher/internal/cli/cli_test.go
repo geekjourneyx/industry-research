@@ -273,3 +273,37 @@ func TestRunRetrieveUnsupportedProviderReturnsInvalidArguments(t *testing.T) {
 		t.Fatalf("stderr = %q, want unsupported provider error", stderr.String())
 	}
 }
+
+func TestRunRetrieveUnknownFlagAfterQueryReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"retrieve", "test", "--bad", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "unknown flag: --bad") {
+		t.Fatalf("stderr = %q, want unknown flag error", stderr.String())
+	}
+}
+
+func TestRunRetrieveInvalidCountReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"retrieve", "test", "--count", "nope", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "invalid --count") {
+		t.Fatalf("stderr = %q, want invalid count error", stderr.String())
+	}
+}

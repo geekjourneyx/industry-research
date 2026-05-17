@@ -121,7 +121,19 @@ func (c *Client) Search(ctx context.Context, req retrieval.RetrievalRequest) (re
 	}
 
 	var decoded bochaResponse
-	if len(strings.TrimSpace(string(raw))) > 0 {
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		if httpResp.StatusCode >= 200 && httpResp.StatusCode < 300 {
+			resp.Errors = append(resp.Errors, retrieval.Error{
+				Code:           rerrors.CodeProviderParseError,
+				Message:        "empty provider response body",
+				ProviderStatus: httpResp.StatusCode,
+				Retryable:      false,
+				AgentAction:    "Inspect the provider response body.",
+				RawErrorPath:   "$",
+			})
+			return resp, errors.New("bocha search: empty response body")
+		}
+	} else {
 		if err := json.Unmarshal(raw, &decoded); err != nil {
 			if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
 				retrievalErr := mapProviderError(httpResp.StatusCode, "", string(raw), "")
@@ -150,6 +162,17 @@ func (c *Client) Search(ctx context.Context, req retrieval.RetrievalRequest) (re
 	resp.Usage["total_estimated_matches"] = decoded.Data.WebPages.TotalEstimatedMatches
 	resp.Usage["some_results_removed"] = decoded.Data.WebPages.SomeResultsRemoved
 	resp.Usage["provider_log_id"] = decoded.LogID
+	resp.RetrievalCalls = append(resp.RetrievalCalls, retrieval.RetrievalCall{
+		CallID:         decoded.LogID,
+		Query:          query,
+		Status:         "success",
+		ProviderAction: "web-search",
+		ProviderMetadata: map[string]any{
+			"provider_log_id":         decoded.LogID,
+			"total_estimated_matches": decoded.Data.WebPages.TotalEstimatedMatches,
+			"some_results_removed":    decoded.Data.WebPages.SomeResultsRemoved,
+		},
+	})
 	resp.Items = make([]retrieval.Item, 0, len(decoded.Data.WebPages.Value))
 	for i, page := range decoded.Data.WebPages.Value {
 		resp.Items = append(resp.Items, retrieval.Item{
@@ -235,7 +258,17 @@ func mapProviderError(status int, providerCode, message, logID string) retrieval
 		code = rerrors.CodeProviderRateLimited
 		retryable = true
 		action = "Retry after waiting, or reduce request frequency."
-	case status == http.StatusUnauthorized || status == http.StatusForbidden || providerCode == "401" || providerCode == "403":
+	case status == http.StatusForbidden || providerCode == "403":
+		code = rerrors.CodeProviderQuotaExhausted
+		action = "Check Bocha account balance, quota, and billing status."
+	case status == http.StatusBadRequest || providerCode == "400":
+		code = rerrors.CodeInvalidArgument
+		action = "Check the Bocha request parameters."
+		if messageMentionsAPIKey(message) {
+			code = rerrors.CodeMissingAPIKey
+			action = "Check the Bocha API key configuration."
+		}
+	case status == http.StatusUnauthorized || providerCode == "401":
 		code = rerrors.CodeProviderAuthError
 		action = "Check the Bocha API key and account permissions."
 	case status >= 500:
@@ -274,6 +307,16 @@ func providerCodeString(value any) string {
 	default:
 		return fmt.Sprint(typed)
 	}
+}
+
+func messageMentionsAPIKey(message string) bool {
+	lower := strings.ToLower(message)
+	return strings.Contains(lower, "api key") ||
+		strings.Contains(lower, "apikey") ||
+		strings.Contains(lower, "auth") ||
+		strings.Contains(lower, "authorization") ||
+		strings.Contains(lower, "token") ||
+		strings.Contains(lower, "credential")
 }
 
 type bochaResponse struct {

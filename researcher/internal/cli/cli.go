@@ -102,7 +102,12 @@ func runRetrieve(args []string, stdout io.Writer, stderr io.Writer) int {
 		return rerrors.ExitInvalidArguments
 	}
 
-	query, err := positionalQuery(args)
+	query, err := parseRetrieveArgs(args)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	count, err := intFlag(args, "--count", 10)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return rerrors.ExitInvalidArguments
@@ -121,7 +126,7 @@ func runRetrieve(args []string, stdout io.Writer, stderr io.Writer) int {
 		Mode:         retrieval.ModeSearch,
 		Query:        query,
 		Parameters: map[string]any{
-			"count":     intFlag(args, "--count", 10),
+			"count":     count,
 			"freshness": flagValueDefault(args, "--freshness", "noLimit"),
 			"summary":   true,
 		},
@@ -178,19 +183,19 @@ func flagValueDefault(args []string, name string, fallback string) string {
 	return fallback
 }
 
-func intFlag(args []string, name string, fallback int) int {
+func intFlag(args []string, name string, fallback int) (int, error) {
 	value := flagValue(args, name)
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
-		return fallback
+		return 0, fmt.Errorf("invalid %s: %q", name, value)
 	}
-	return parsed
+	return parsed, nil
 }
 
-func positionalQuery(args []string) (string, error) {
+func parseRetrieveArgs(args []string) (string, error) {
 	valueFlags := map[string]bool{
 		"--config":    true,
 		"--provider":  true,
@@ -198,13 +203,22 @@ func positionalQuery(args []string) (string, error) {
 		"--count":     true,
 		"--freshness": true,
 	}
+	boolFlags := map[string]bool{
+		"--json":   true,
+		"--pretty": true,
+	}
+	query := ""
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		if arg == "--json" || arg == "--pretty" {
+		if boolFlags[arg] {
 			continue
 		}
 		if strings.Contains(arg, "=") && isFlag(arg) {
-			continue
+			name := strings.SplitN(arg, "=", 2)[0]
+			if valueFlags[name] {
+				continue
+			}
+			return "", fmt.Errorf("unknown flag: %s", name)
 		}
 		if valueFlags[arg] {
 			i++
@@ -213,13 +227,19 @@ func positionalQuery(args []string) (string, error) {
 		if isFlag(arg) {
 			return "", fmt.Errorf("unknown flag: %s", arg)
 		}
-		query := strings.TrimSpace(arg)
-		if query == "" {
+		value := strings.TrimSpace(arg)
+		if value == "" {
 			return "", fmt.Errorf("retrieve query is required")
 		}
-		return query, nil
+		if query != "" {
+			return "", fmt.Errorf("unexpected argument: %s", arg)
+		}
+		query = value
 	}
-	return "", fmt.Errorf("retrieve query is required")
+	if query == "" {
+		return "", fmt.Errorf("retrieve query is required")
+	}
+	return query, nil
 }
 
 func exitCodeForRetrievalErrors(errors []retrieval.Error) int {
