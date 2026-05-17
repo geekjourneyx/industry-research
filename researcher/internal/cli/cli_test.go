@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/geekjourneyx/researcher/internal/rerrors"
 )
 
 func TestRunNoArgsPrintsHelpAndReturnsZero(t *testing.T) {
@@ -219,5 +221,55 @@ func TestRunCapabilitiesExtraPositionalArgReturnsOne(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "unexpected argument: extra") {
 		t.Fatalf("stderr = %q, want unexpected argument error", stderr.String())
+	}
+}
+
+func TestRunRetrieveDefaultsToBochaAndWritesJSONProviderFailure(t *testing.T) {
+	t.Setenv("BOCHA_API_KEY", "")
+	t.Setenv("RESEARCHER_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"retrieve", "瑞幸", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitMissingCredentials {
+		t.Fatalf("Run() code = %d, want missing credentials exit", code)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	if decoded["provider"] != "bocha" {
+		t.Fatalf("provider = %v, want bocha", decoded["provider"])
+	}
+	errorsValue, ok := decoded["errors"].([]any)
+	if !ok || len(errorsValue) != 1 {
+		t.Fatalf("errors = %#v, want one retrieval error", decoded["errors"])
+	}
+	firstError := errorsValue[0].(map[string]any)
+	if firstError["code"] != rerrors.CodeMissingAPIKey {
+		t.Fatalf("error code = %v, want missing_api_key", firstError["code"])
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunRetrieveUnsupportedProviderReturnsInvalidArguments(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"retrieve", "瑞幸", "--providers", "unknown", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitInvalidArguments {
+		t.Fatalf("Run() code = %d, want invalid arguments exit", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "unsupported provider: unknown") {
+		t.Fatalf("stderr = %q, want unsupported provider error", stderr.String())
 	}
 }

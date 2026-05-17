@@ -45,7 +45,7 @@ Use environment variables for real API secrets. Keep config files for non-secret
 ```yaml
 providers:
   bocha:
-    endpoint: "https://api.bochaai.com/v1/web-search"
+    endpoint: "https://api.bocha.cn/v1/web-search"
   volcengine:
     endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses"
     model: "doubao-seed-2-0-lite-260215"

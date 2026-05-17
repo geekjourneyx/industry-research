@@ -34,7 +34,7 @@ func DefaultConfig() Config {
 	return Config{
 		Providers: ProvidersConfig{
 			Bocha: ProviderConfig{
-				Endpoint: "https://api.bochaai.com/v1/web-search",
+				Endpoint: "https://api.bocha.cn/v1/web-search",
 			},
 			Volcengine: ProviderConfig{
 				Endpoint: "https://ark.cn-beijing.volces.com/api/v3/responses",

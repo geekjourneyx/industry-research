@@ -65,7 +65,7 @@ defaults:
 	if got.Providers.Bocha.APIKey != "yaml-bocha" {
 		t.Fatalf("Bocha API key = %q, want %q", got.Providers.Bocha.APIKey, "yaml-bocha")
 	}
-	if got.Providers.Bocha.Endpoint != "https://api.bochaai.com/v1/web-search" {
+	if got.Providers.Bocha.Endpoint != "https://api.bocha.cn/v1/web-search" {
 		t.Fatalf("Bocha endpoint = %q, want default endpoint", got.Providers.Bocha.Endpoint)
 	}
 	if got.Providers.Volcengine.Endpoint != "https://ark.cn-beijing.volces.com/api/v3/responses" {
