@@ -2,6 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+## Current Status
+
+This plan has been executed through the first delivery. The unchecked boxes below are historical implementation instructions, not the current task state.
+
+Current delivered scope:
+
+- Go CLI under `researcher/`.
+- Bocha direct search provider.
+- Volcengine Ark model-answer web-search provider.
+- Internal multi-provider retrieval layer.
+- Trace planning, evidence ledger, disconfirmation log, confidence report, report generation, workspace validation.
+- `SKILL.md`, agent role files, evals, references, and validator updated to treat `researcher` artifacts as the primary quality gate.
+
+Current public CLI note: `researcher retrieve` supports Bocha direct search, while Volcengine is exposed through `researcher answer volcengine`. The earlier planned `retrieve --providers bocha,volcengine` command shape is not the public interface yet.
+
 **Goal:** Build a Go CLI named `researcher` that can execute a first-version research workflow and let `industry-research` call it instead of relying only on prompt orchestration.
 
 **Architecture:** Create an independent Go module under `researcher/` with provider-neutral research types, Bocha and Volcengine provider modules, trace-reasoning artifacts, evidence ledger, confidence rules, and CLI commands. Then redesign `industry-research/SKILL.md` into a thinner domain entrypoint that calls `researcher` and validates its artifacts.

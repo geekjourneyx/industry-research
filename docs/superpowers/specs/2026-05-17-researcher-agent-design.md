@@ -1,5 +1,18 @@
 # Researcher Agent Design
 
+## Current Status
+
+This design has been implemented as the first `researcher` version in this repository.
+
+Current implementation notes:
+
+- The CLI lives in `researcher/`.
+- `researcher retrieve` currently exposes Bocha direct search.
+- `researcher answer volcengine` exposes Volcengine Ark model-mediated web search.
+- Multi-provider retrieval exists as an internal provider layer; the public `retrieve --providers bocha,volcengine` shape remains a future CLI expansion.
+- `researcher run` creates the required workspace artifacts for first-pass research, trace planning, evidence ledger, disconfirmation log, confidence report, and final report.
+- Browser verification is represented in schemas and review rules, but not yet automated inside the CLI.
+
 ## Summary
 
 This design redefines the project around a higher-level goal:

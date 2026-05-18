@@ -1,5 +1,19 @@
 # Restaurant, Retail, and Supply Chain Expert Core Design
 
+## Current Status
+
+This is the earlier vertical-domain design for restaurant, retail, and supply-chain research. It remains valid as the domain reasoning layer, but it is no longer the full system architecture.
+
+The current system adds `researcher` as the execution layer. The domain ideas in this document now map mainly to:
+
+- `trace_plan.json`
+- `evidence_ledger.json`
+- `disconfirmation_log.json`
+- `confidence_report.json`
+- agent review rules in `agents/*.md`
+
+The non-goal below was true for this earlier design stage. It has since been superseded by the `researcher` CLI design.
+
 ## Background
 
 The current `industry-research` skill has a strong multi-agent report structure, but its judgment still starts too often from public internet narratives. This creates weak reports for vertical domains such as restaurant supply chain, retail expansion, warehousing, franchise operations, and cold-chain logistics.

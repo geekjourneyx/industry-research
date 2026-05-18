@@ -1,19 +1,45 @@
 # researcher
 
-`researcher` is a command-line skeleton for the industry research engine. It will coordinate retrieval, planning, evidence review, execution, and validation steps for research workflows.
+`researcher` is the command-line execution layer for the industry research engine. It coordinates retrieval, planning, evidence review, workspace generation, and validation for research workflows.
 
 ## Commands
 
-Task 1 implements only the version and help commands. The remaining commands below are planned first-version commands and are listed to reserve the CLI shape.
-
 - `researcher version` prints the current binary version.
 - `researcher help`, `researcher --help`, and `researcher -h` print command help.
-- `researcher capabilities --json` will describe supported capabilities in JSON.
-- `researcher retrieve` will collect source material.
-- `researcher plan` will prepare a research plan.
-- `researcher evidence` will organize and evaluate source evidence.
-- `researcher run` will run a full research workflow.
-- `researcher validate` will validate generated outputs.
+- `researcher capabilities [provider] --json` describes supported provider capabilities.
+- `researcher retrieve "<query>" --provider bocha --count 10 --json` collects direct web-search leads.
+- `researcher answer volcengine "<query>" --model <model> --limit 10 --json` asks a model to answer with web-search annotations.
+- `researcher plan "<question>" --domain chain-brand --json` builds a trace plan.
+- `researcher evidence "<question>" --json` creates an empty evidence ledger shell.
+- `researcher run "<question>" --domain chain-brand --depth standard --workspace-root <dir> --json` creates a complete workspace.
+- `researcher validate <workspace_dir>` validates generated workspace artifacts.
+
+## Build
+
+```bash
+make build
+```
+
+## Examples
+
+```bash
+./researcher capabilities --json
+./researcher plan "瑞幸咖啡 2026 年门店数目标是否可信？" --domain chain-brand --json
+./researcher run "瑞幸咖啡 2026 年门店数目标是否可信？" --domain chain-brand --depth standard --json
+./researcher validate researcher-workspace/<workspace>
+```
+
+For Bocha direct search:
+
+```bash
+BOCHA_API_KEY=... ./researcher retrieve "瑞幸咖啡 2026 门店数" --provider bocha --count 10 --json
+```
+
+For Volcengine Ark model search:
+
+```bash
+ARK_API_KEY=... ./researcher answer volcengine "瑞幸咖啡 2026 门店数目标是否可信？" --json
+```
 
 ## Environment Variables
 

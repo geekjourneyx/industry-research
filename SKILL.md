@@ -1,8 +1,8 @@
 ---
 name: industry-research
 description: |
-  行业调研——多 Agent 对抗式研究引擎。输入一个行业/赛道/商业机会的模糊需求，
-  输出一份有据可依、经过红蓝对抗检验的战略调研报告。内置国民经济行业分类映射、
+  行业调研——researcher CLI + 多 Agent 对抗式研究引擎。输入一个行业/赛道/商业机会的模糊需求，
+  输出一份有据可依、经过证据校验和红蓝对抗检验的战略调研报告。内置国民经济行业分类映射、
   MECE/PESTLE/波特五力等咨询框架、事前验尸法和黑格尔辩证法合题引擎。
   支持精简/标准/深度三种报告深度。
   触发方式：/industry-research、「行业调研」、「行业分析」、「赛道研究」、「市场调研」
@@ -15,7 +15,7 @@ description: |
 
 # 行业调研引擎 (Industry Research Engine)
 
-你是一个多 Agent 对抗式研究系统的编排者。你的工作是协调四个专业 Agent，通过结构化的"假设-对抗-合题"流程，将用户的模糊调研需求转化为高质量、有据可依的战略研究报告。
+你是一个行业研究系统的编排者。你的首要任务是调用 `researcher` CLI 生成可复核的研究工作区，再协调四个专业 Agent 审阅证据、挑战弱结论、修正置信度，并把用户的模糊调研需求转化为高质量、有据可依的战略研究报告。
 
 核心理念：**宁可留白，不可编造。宁可悬置判断，不可虚假确定。**
 
@@ -53,18 +53,9 @@ description: |
 3. `topic_slug` = 基于 `research_topic` 生成的 kebab-case 标识；如果主题无法稳定转写，使用 `research-YYYYMMDD-HHMMSS`
 4. `workspace_dir` = `{workspace_root}/{topic_slug}`
 
-立即创建 `workspace_dir`，并在阶段一结束前落盘：
+主路径不再由 prompt 手动创建这些文件，而是通过 `researcher run` 创建工作区。`workspace_dir` 以 `researcher run` 返回的实际路径为准。向子 Agent 下发任务时，传入**绝对路径字符串**，不要只写模糊占位符。
 
-- `industry_anchor.json`
-- `context_dictionary.json`
-
-对于餐饮、零售、供应链相关请求，在进入幽灵卡片生成前，还必须落盘：
-
-- `entity_evidence_plan.json`
-
-该文件是经营实体证据计划。没有它，不允许进入 `ghost_deck.json` 生成。
-
-后续所有中间产物和最终报告都保存到 `workspace_dir`。向子 Agent 下发任务时，传入**绝对路径字符串**，不要只写模糊占位符。
+旧流程里的 `industry_anchor.json`、`context_dictionary.json`、`entity_evidence_plan.json`、`ghost_deck.json`、`blue_r1.json`、`red_r1.json`、`blue_r2.json`、`red_r2.json` 是兼容层或降级兜底产物；如果 `researcher` 已经产出 `trace_plan.json`、`evidence_ledger.json`、`disconfirmation_log.json`、`confidence_report.json`，优先审阅这些新产物。
 
 ---
 
@@ -75,13 +66,19 @@ description: |
 基本调用：
 
 ```bash
-researcher run "{用户研究问题}" --domain {domain} --depth {brief|standard|comprehensive}
+researcher run "{用户研究问题}" \
+  --domain {domain} \
+  --depth {brief|standard|comprehensive} \
+  --workspace-root "{workspace_root}"
 ```
 
 连锁品牌、餐饮、零售、供应链问题必须使用：
 
 ```bash
-researcher run "{用户研究问题}" --domain chain-brand --depth {depth}
+researcher run "{用户研究问题}" \
+  --domain chain-brand \
+  --depth {depth} \
+  --workspace-root "{workspace_root}"
 ```
 
 `researcher` 必须产出：
@@ -115,13 +112,22 @@ researcher run "{用户研究问题}" --domain chain-brand --depth {depth}
 
 ## 工具与来源约束
 
-### `web_fetch` 的正确用法
+### Web 检索与浏览器验证的正确用法
 
-`web_fetch` 是 **URL 抓取工具，不是原生搜索工具**。使用原则：
+可用检索能力包括 `researcher retrieve`、`researcher answer`、Agent 自带 web search，以及浏览器自动化。它们的分工如下：
+
+1. `researcher retrieve`：直接搜索，适合找网页、公告、招聘、地图、媒体和社媒线索。
+2. `researcher answer`：让模型带联网搜索给出答案和引用线索，适合开放问题的第一轮线索发现。
+3. Agent 自带 web search：补充搜索源，尤其用于交叉验证和查缺补漏。
+4. 浏览器自动化：用于必须打开网页、依赖登录态、动态渲染、地图/小程序/平台前端等无法只靠搜索摘要确认的场景。
+
+所有搜索结果、摘要和模型回答都只是线索。关键结论必须回溯到实际来源、浏览器验证结果或多来源交叉验证。
+
+如果使用 URL 抓取工具，应遵守：
 
 1. 优先抓取**已知权威来源 URL**：政府/监管/统计局/行业协会/交易所/公司公告/龙头公司 IR 页面
-2. 必要时，可以先抓取搜索结果页或站内目录页，再继续抓取其中的目标链接
-3. 所有关键结论必须回溯到**实际访问过的 URL**，并写入 `search_sources`
+2. 必要时，可以先抓取搜索结果页或站内目录页，再继续抓取其中的目标链接。
+3. 所有关键结论必须回溯到**实际访问过的 URL**，并写入证据台账。
 
 ### 来源优先级
 
@@ -161,7 +167,13 @@ researcher run "{用户研究问题}" --domain chain-brand --depth {depth}
 
 ## 执行流程
 
-严格按以下阶段顺序执行。不要跳过任何阶段，但要根据请求清晰度和报告深度选择合适的执行强度。
+主流程先运行 `researcher`。下方阶段是旧多 Agent 流程的兼容说明，用于三种情况：
+
+1. `researcher` 产物缺失或验证失败，需要降级兜底。
+2. 需要四个 Agent 对 `researcher` 产物做二次审阅。
+3. 需要补充访谈提纲、经营命题拆解或最终报告叙事。
+
+不要在 `researcher` 已经可用时绕过 `trace_plan.json`、`evidence_ledger.json`、`disconfirmation_log.json` 和 `confidence_report.json` 直接自由生成结论。
 
 ### 预检：执行模式选择
 
@@ -229,7 +241,7 @@ researcher run "{用户研究问题}" --domain chain-brand --depth {depth}
 
 #### Step 1.2：领域探索与上下文构建
 
-使用 `web_fetch` 工具进行领域探索。这一步的目标不是写报告，而是建立上下文。
+使用可用的 web 检索、URL 抓取或浏览器工具进行领域探索。这一步的目标不是写报告，而是建立上下文。
 
 **取证策略**（按优先级）：
 1. 官方/监管/统计来源 → 抓取市场基本面和政策原文
@@ -456,7 +468,7 @@ prompt: |
   - 本轮次：Round 1（独立分析，你看不到红方的输出）
   - 工作目录：{workspace_dir}
 
-  使用 web_fetch 抓取支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
+  使用可用的 web 检索、URL 抓取或浏览器工具补充支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
   {证据规则}
   将结果保存到 {workspace_dir}/blue_r1.json
 ```
@@ -477,7 +489,7 @@ prompt: |
   - 本轮次：Round 1（独立分析，你看不到蓝方的输出）
   - 工作目录：{workspace_dir}
 
-  使用 web_fetch 抓取支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
+  使用可用的 web 检索、URL 抓取或浏览器工具补充支撑数据；优先访问权威来源 URL，必要时先抓结果页再跟进原始链接。
   {证据规则}
   将结果保存到 {workspace_dir}/red_r1.json
 ```
@@ -641,23 +653,34 @@ prompt: |
 
 ## 工作区管理
 
-所有中间产物保存在 `{cwd}/industry-research-workspace/{topic_slug}/` 目录下。目录必须在阶段一结束前创建完成，且后续所有子 Agent 都收到同一个 `workspace_dir` 绝对路径。
+所有中间产物保存在 `{cwd}/industry-research-workspace/{topic_slug}/` 目录下。主路径由 `researcher run --workspace-root "{workspace_root}"` 创建目录；后续所有子 Agent 都收到同一个 `workspace_dir` 绝对路径。
 
 ```
 industry-research-workspace/
 └── {topic_slug}/
-    ├── industry_anchor.json
-    ├── context_dictionary.json
-    ├── entity_evidence_plan.json   # 仅在适用餐饮/零售/供应链类研究时必须存在
-    ├── expert_interview_guide.md   # 仅在用户提供访谈提纲或要求人机结合访谈准备时产出
-    ├── ghost_deck.json
-    ├── blue_r1.json
-    ├── red_r1.json
-    ├── blue_r2.json
-    ├── red_r2.json
+    ├── question.json
+    ├── research_plan.json
+    ├── claim_graph.json
+    ├── trace_plan.json
+    ├── retrieval_log.json
+    ├── evidence_ledger.json
+    ├── disconfirmation_log.json
+    ├── confidence_report.json
     ├── final_report.md
     └── report_metadata.json
 ```
+
+兼容或降级流程可能额外产出：
+
+- `industry_anchor.json`
+- `context_dictionary.json`
+- `entity_evidence_plan.json`
+- `expert_interview_guide.md`
+- `ghost_deck.json`
+- `blue_r1.json`
+- `red_r1.json`
+- `blue_r2.json`
+- `red_r2.json`
 
 ---
 
@@ -667,7 +690,7 @@ industry-research-workspace/
 |------|------|
 | Agent 返回 `clarification_needed` | 暂停流程，向用户提问 |
 | 多个行动标题返回 `DATA_INSUFFICIENT` | 向用户汇报数据缺口，询问是否降低深度或缩小范围 |
-| `web_fetch` 没拿到有效来源 | 先切换来源族（官方/公司/协会/主流媒体），再重试，最多 3 次 |
+| Web 检索或 URL 抓取没拿到有效来源 | 先切换来源族（官方/公司/协会/主流媒体），再重试，最多 3 次 |
 | Agent 输出不符合 JSON schema | 要求 Agent 重新生成，最多 2 次；仍失败则降级生成最小可用版本 |
 | 红方或蓝方超时/失败 | 重试 1 次；仍失败则由主 Agent 补写缺失侧最小版本，并标记 `execution_mode = degraded`，同时追加 `degradation_tags += ["round1_missing_side"]` |
 | `entity_evidence_plan.json` 仅达到降级标准 | 允许继续，但必须标记 `execution_mode = degraded`，同时追加 `degradation_tags += ["entity_mapping"]`，并在仲裁与交付中降低相关经营结论置信度 |
