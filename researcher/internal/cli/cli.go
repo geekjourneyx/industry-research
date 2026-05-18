@@ -5,15 +5,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/geekjourneyx/researcher/internal/confidence"
 	"github.com/geekjourneyx/researcher/internal/config"
+	"github.com/geekjourneyx/researcher/internal/ledger"
 	"github.com/geekjourneyx/researcher/internal/output"
+	"github.com/geekjourneyx/researcher/internal/project"
 	"github.com/geekjourneyx/researcher/internal/provider/bocha"
 	"github.com/geekjourneyx/researcher/internal/provider/volcengine"
+	"github.com/geekjourneyx/researcher/internal/report"
 	"github.com/geekjourneyx/researcher/internal/rerrors"
 	"github.com/geekjourneyx/researcher/internal/retrieval"
+	"github.com/geekjourneyx/researcher/internal/trace"
+	"github.com/geekjourneyx/researcher/internal/validate"
 )
 
 func Run(args []string, version string, stdout io.Writer, stderr io.Writer) int {
@@ -35,6 +42,14 @@ func Run(args []string, version string, stdout io.Writer, stderr io.Writer) int 
 		return runRetrieve(args[1:], stdout, stderr)
 	case "answer":
 		return runAnswer(args[1:], stdout, stderr)
+	case "plan":
+		return runPlan(args[1:], stdout, stderr)
+	case "evidence":
+		return runEvidence(args[1:], stdout, stderr)
+	case "run":
+		return runResearch(args[1:], stdout, stderr)
+	case "validate":
+		return runValidate(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command: %s\n\n", args[0])
 		printHelp(stderr)
@@ -235,6 +250,110 @@ func runAnswer(args []string, stdout io.Writer, stderr io.Writer) int {
 	return rerrors.ExitSuccess
 }
 
+func runPlan(args []string, stdout io.Writer, stderr io.Writer) int {
+	question, err := parseSingleQuestionCommand("plan", args, map[string]bool{"--domain": true}, map[string]bool{"--json": true, "--pretty": true})
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	plan := trace.BuildChainBrandTracePlan(question)
+	pretty := hasFlag(args, "--pretty")
+	if err := output.WriteJSON(stdout, plan, pretty); err != nil {
+		fmt.Fprintf(stderr, "write plan: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+	return rerrors.ExitSuccess
+}
+
+func runEvidence(args []string, stdout io.Writer, stderr io.Writer) int {
+	question, err := parseSingleQuestionCommand("evidence", args, nil, map[string]bool{"--json": true, "--pretty": true})
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	ledgerDoc := ledger.EvidenceLedger{
+		ResearchQuestion: question,
+		Items:            []ledger.EvidenceItem{},
+	}
+	pretty := hasFlag(args, "--pretty")
+	if err := output.WriteJSON(stdout, ledgerDoc, pretty); err != nil {
+		fmt.Fprintf(stderr, "write evidence: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+	return rerrors.ExitSuccess
+}
+
+func runValidate(args []string, stdout io.Writer, stderr io.Writer) int {
+	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
+		fmt.Fprintln(stderr, "validate requires workspace directory")
+		return rerrors.ExitInvalidArguments
+	}
+	if len(args) > 1 {
+		fmt.Fprintf(stderr, "unexpected argument: %s\n", args[1])
+		return rerrors.ExitInvalidArguments
+	}
+	if err := validate.Workspace(args[0]); err != nil {
+		fmt.Fprintf(stderr, "validate: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+	fmt.Fprintln(stdout, "ok")
+	return rerrors.ExitSuccess
+}
+
+func runResearch(args []string, stdout io.Writer, stderr io.Writer) int {
+	question, err := parseSingleQuestionCommand("run", args, map[string]bool{"--domain": true, "--depth": true, "--workspace-root": true}, map[string]bool{"--json": true, "--pretty": true})
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return rerrors.ExitInvalidArguments
+	}
+	domain := flagValueDefault(args, "--domain", "general")
+	depth := flagValueDefault(args, "--depth", "standard")
+	root := flagValueDefault(args, "--workspace-root", "researcher-workspace")
+
+	ws, err := project.CreateWorkspace(root, question, domain, depth)
+	if err != nil {
+		fmt.Fprintf(stderr, "create workspace: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+
+	tracePlan := trace.BuildChainBrandTracePlan(question)
+	ledgerDoc := ledger.EvidenceLedger{
+		ResearchQuestion: question,
+		Items:            []ledger.EvidenceItem{},
+	}
+	decision := confidence.Decision{
+		Rating: "unverified",
+		Reason: "trace plan generated, no independently verified evidence collected yet",
+	}
+	markdown := report.Markdown(question, tracePlan, decision)
+
+	files := map[string]any{
+		"research_plan.json":       map[string]any{"question": question, "domain": domain, "depth": depth},
+		"claim_graph.json":         tracePlan.Claims,
+		"trace_plan.json":          tracePlan,
+		"retrieval_log.json":       []any{},
+		"evidence_ledger.json":     ledgerDoc,
+		"disconfirmation_log.json": []any{},
+		"confidence_report.json":   decision,
+		"report_metadata.json":     map[string]any{"workspace": ws.Dir, "execution_mode": "normal"},
+	}
+	for name, value := range files {
+		if err := project.WriteJSON(filepath.Join(ws.Dir, name), value); err != nil {
+			fmt.Fprintf(stderr, "write %s: %v\n", name, err)
+			return rerrors.ExitInvalidArguments
+		}
+	}
+	if err := os.WriteFile(filepath.Join(ws.Dir, "final_report.md"), []byte(markdown), 0o644); err != nil {
+		fmt.Fprintf(stderr, "write final_report.md: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+	if err := output.WriteJSON(stdout, map[string]string{"workspace": ws.Dir}, hasFlag(args, "--pretty")); err != nil {
+		fmt.Fprintf(stderr, "write run output: %v\n", err)
+		return rerrors.ExitInvalidArguments
+	}
+	return rerrors.ExitSuccess
+}
+
 func isFlag(arg string) bool {
 	return len(arg) > 0 && arg[0] == '-'
 }
@@ -423,6 +542,56 @@ func parseAnswerArgs(args []string) (string, string, error) {
 		return "", "", fmt.Errorf("answer query is required")
 	}
 	return provider, query, nil
+}
+
+func parseSingleQuestionCommand(command string, args []string, valueFlags map[string]bool, boolFlags map[string]bool) (string, error) {
+	if valueFlags == nil {
+		valueFlags = map[string]bool{}
+	}
+	if boolFlags == nil {
+		boolFlags = map[string]bool{}
+	}
+	query := ""
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if boolFlags[arg] {
+			continue
+		}
+		if strings.Contains(arg, "=") && isFlag(arg) {
+			parts := strings.SplitN(arg, "=", 2)
+			name := parts[0]
+			value := parts[1]
+			if !valueFlags[name] {
+				return "", fmt.Errorf("unknown flag: %s", name)
+			}
+			if strings.TrimSpace(value) == "" || strings.HasPrefix(value, "--") {
+				return "", fmt.Errorf("invalid %s: %q", name, value)
+			}
+			continue
+		}
+		if valueFlags[arg] {
+			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" || strings.HasPrefix(args[i+1], "--") {
+				return "", fmt.Errorf("invalid %s: %q", arg, "")
+			}
+			i++
+			continue
+		}
+		if isFlag(arg) {
+			return "", fmt.Errorf("unknown flag: %s", arg)
+		}
+		value := strings.TrimSpace(arg)
+		if value == "" {
+			return "", fmt.Errorf("%s requires question", command)
+		}
+		if query != "" {
+			return "", fmt.Errorf("unexpected argument: %s", arg)
+		}
+		query = value
+	}
+	if query == "" {
+		return "", fmt.Errorf("%s requires question", command)
+	}
+	return query, nil
 }
 
 func validateAnswerValueFlags(args []string) error {

@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,6 +25,83 @@ func TestRunNoArgsPrintsHelpAndReturnsZero(t *testing.T) {
 	}
 	if stderr.String() != "" {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunPlanWritesTracePlanJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"plan", "瑞幸咖啡 2026 年门店数目标是否可信？", "--domain", "chain-brand", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitSuccess {
+		t.Fatalf("Run() code = %d, want success", code)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	if decoded["domain"] != "chain-brand" {
+		t.Fatalf("domain = %v, want chain-brand", decoded["domain"])
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunEvidenceWritesEmptyLedgerJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"evidence", "瑞幸是否可信？", "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitSuccess {
+		t.Fatalf("Run() code = %d, want success", code)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	if decoded["research_question"] != "瑞幸是否可信？" {
+		t.Fatalf("research_question = %v", decoded["research_question"])
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRunCreatesValidWorkspace(t *testing.T) {
+	root := t.TempDir()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run([]string{"run", "瑞幸咖啡 2026 年门店数目标是否可信？", "--domain", "chain-brand", "--depth", "standard", "--workspace-root", root, "--json"}, "test-version", &stdout, &stderr)
+
+	if code != rerrors.ExitSuccess {
+		t.Fatalf("Run() code = %d, want success, stderr=%q", code, stderr.String())
+	}
+	var decoded map[string]string
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v", err)
+	}
+	workspace := decoded["workspace"]
+	if workspace == "" {
+		t.Fatalf("workspace path missing from output")
+	}
+	for _, name := range []string{"question.json", "trace_plan.json", "evidence_ledger.json", "confidence_report.json", "final_report.md"} {
+		if _, err := os.Stat(filepath.Join(workspace, name)); err != nil {
+			t.Fatalf("%s missing: %v", name, err)
+		}
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = Run([]string{"validate", workspace}, "test-version", &stdout, &stderr)
+	if code != rerrors.ExitSuccess {
+		t.Fatalf("validate code = %d, want success, stderr=%q", code, stderr.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "ok" {
+		t.Fatalf("validate stdout = %q, want ok", stdout.String())
 	}
 }
 
