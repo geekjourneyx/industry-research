@@ -1,0 +1,54 @@
+{
+  "research_question": "晓餐的全量已开城市数量、供给仓数量、最远下沉城市以及距离供给中心的距离",
+  "items": [
+    {
+      "claim": "晓餐官网披露覆盖广州天河、荔湾、海珠、番禺，中山市区，以及佛山顺德、南海。",
+      "verdict": "VERIFIED_OPERATING_FACT",
+      "evidence_family": "official_site",
+      "source_url": "https://www.xcdpw.cn/",
+      "confidence": "high"
+    },
+    {
+      "claim": "招聘/企业介绍资料披露 180+ 条配送路线覆盖广州、深圳、佛山、东莞、南昌、上海、杭州、苏州。",
+      "verdict": "HIGH_CONFIDENCE_INFERENCE",
+      "evidence_family": "hiring_company_profile",
+      "source_url": "https://www.kszpw.com/touch/company-show.php?id=13676&jobsid=46081",
+      "confidence": "medium"
+    },
+    {
+      "claim": "南昌存在万纬冷链晓餐冻品网仓配地址。",
+      "verdict": "VERIFIED_OPERATING_FACT",
+      "evidence_family": "hiring_operating_trace",
+      "source_url": "https://jxdxsjy.jx.edu.cn/companydetail/view/id/1765/tab/jyzd.xzeduc.cn/admin/default/jyzd.xzeduc.cn/admin/default/login",
+      "confidence": "medium_high"
+    },
+    {
+      "claim": "苏州/昆山存在晓餐仓配节点线索，地址含 2号库1层，经营范围包含城市配送运输服务。",
+      "verdict": "VERIFIED_OPERATING_FACT",
+      "evidence_family": "business_registry_operating_trace",
+      "source_url": "https://www.qichamao.com/orgcompany/searchitemdtl/8ac196223d9291699995ba57271cc4e9.html",
+      "confidence": "medium_high"
+    },
+    {
+      "claim": "佛山天禅冷链物流园是晓餐佛山仓强线索，但直接绑定证据不足。",
+      "verdict": "HIGH_CONFIDENCE_INFERENCE",
+      "evidence_family": "cold_chain_poi_and_model_search_lead",
+      "source_url": "https://y.qianzhan.com/yuanqu/item/ebf2b1ed71b734a8.html",
+      "confidence": "medium"
+    },
+    {
+      "claim": "深圳晓餐和黎光物流园冷库地址是新增节点线索，但稳定供给仓功能未确认。",
+      "verdict": "VERIFIED_OPERATING_FACT",
+      "evidence_family": "partner_operating_trace",
+      "source_url": "https://www.sohu.com/a/806289266_121613636",
+      "confidence": "medium_high"
+    },
+    {
+      "claim": "合作方公开文章披露晓餐已在广东、江西、上海、湖南等区域成立 5 个物流中心。",
+      "verdict": "HIGH_CONFIDENCE_INFERENCE",
+      "evidence_family": "partner_publication",
+      "source_url": "https://www.sohu.com/a/806289266_121613636",
+      "confidence": "medium"
+    }
+  ]
+}

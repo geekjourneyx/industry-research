@@ -1,0 +1,80 @@
+[
+  {
+    "provider": "agent_web_search",
+    "query": "晓餐冻品网 180+ 配送路线 广州 深圳 佛山 东莞 南昌 上海 杭州 苏州",
+    "result_urls": [
+      "https://www.xcdpw.cn/",
+      "https://www.kszpw.com/touch/company-show.php?id=13676&jobsid=46081",
+      "https://www.028wz.net/article/2553/5.html"
+    ]
+  },
+  {
+    "provider": "volcengine_answer",
+    "query": "晓餐冻品网/广州晓餐供应链管理有限公司 覆盖城市 配送路线 仓库地址",
+    "result_urls": [
+      "https://m.zhipin.com/companys/3ea489734c34db0b1XF82tS4EVc~.html",
+      "https://www.xcdpw.cn/",
+      "https://jxdxsjy.jx.edu.cn/job/view/id/192901",
+      "https://jxdxsjy.jx.edu.cn/job/view/id/192905"
+    ]
+  },
+  {
+    "provider": "bocha",
+    "query": "晓餐 南昌 保税6路66号 万纬冷链",
+    "result_urls": [
+      "https://jxdxsjy.jx.edu.cn/companydetail/view/id/1765/tab/jyzd.xzeduc.cn/admin/default/jyzd.xzeduc.cn/admin/default/login"
+    ]
+  },
+  {
+    "provider": "bocha",
+    "query": "晓餐 佛山 天禅冷链 张槎江沙路12号",
+    "result_urls": [
+      "https://www.liantu.cn/bendi/6751150.html",
+      "https://y.qianzhan.com/yuanqu/item/ebf2b1ed71b734a8.html"
+    ]
+  },
+  {
+    "provider": "volcengine_answer",
+    "query": "晓餐冻品网 覆盖城市 仓库; 晓餐冻品网 南昌万纬冷链",
+    "requested_sources": [
+      "douyin",
+      "moji",
+      "toutiao"
+    ],
+    "actual_tool_usage_details": {
+      "web_search": {
+        "search_engine": 4
+      }
+    },
+    "result_urls": [
+      "https://www.xcdpw.cn/",
+      "https://jxdxsjy.jx.edu.cn/jxjtxy/company/view/id/1765",
+      "https://m.zhipin.com/companys/3ea489734c34db0b1XF82tS4EVc~.html",
+      "https://m.kanzhun.com/firm/info/0nJ63dy-FVI~/djxx/"
+    ]
+  },
+  {
+    "provider": "volcengine_answer",
+    "query": "优先使用 douyin/toutiao/moji 搜索晓餐冻品网覆盖城市与仓库",
+    "requested_sources": [
+      "douyin",
+      "toutiao",
+      "moji"
+    ],
+    "actual_tool_usage_details": {
+      "web_search": {
+        "douyin": 2,
+        "search_engine": 2,
+        "toutiao": 2
+      }
+    },
+    "result_urls": [
+      "https://www.xcdpw.cn/",
+      "https://jxdxsjy.jx.edu.cn/jxjtxy/company/view/id/1765",
+      "https://www.xiaocan.com.cn/",
+      "https://www.xiaocan.com.cn/about",
+      "https://m.zhipin.com/gongsi/adc5afd170968f111XV50tm1F1Q~.html",
+      "https://www.sohu.com/a/806289266_121613636"
+    ]
+  }
+]
