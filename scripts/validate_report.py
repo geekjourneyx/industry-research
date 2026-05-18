@@ -92,6 +92,19 @@ OPERATING_TRACE_TERMS = [
     "store locator",
 ]
 
+RESEARCHER_REQUIRED_FILES = [
+    "question.json",
+    "research_plan.json",
+    "claim_graph.json",
+    "trace_plan.json",
+    "retrieval_log.json",
+    "evidence_ledger.json",
+    "disconfirmation_log.json",
+    "confidence_report.json",
+    "final_report.md",
+    "report_metadata.json",
+]
+
 
 def validate_report(
     report_path: str, depth: str = "standard", vertical: str | None = None
@@ -265,14 +278,78 @@ def validate_report(
     return results
 
 
+def validate_researcher_workspace(workspace_dir: str) -> dict:
+    """Validate required researcher artifacts in a workspace directory."""
+    results = {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "stats": {},
+    }
+
+    root = Path(workspace_dir)
+    if not root.exists():
+        results["valid"] = False
+        results["errors"].append(f"Researcher workspace not found: {workspace_dir}")
+        return results
+    if not root.is_dir():
+        results["valid"] = False
+        results["errors"].append(f"Researcher workspace is not a directory: {workspace_dir}")
+        return results
+
+    present = []
+    for name in RESEARCHER_REQUIRED_FILES:
+        artifact = root / name
+        if artifact.exists():
+            present.append(name)
+        else:
+            results["valid"] = False
+            results["errors"].append(f"Missing researcher artifact: {name}")
+
+    results["stats"]["required_artifact_count"] = len(RESEARCHER_REQUIRED_FILES)
+    results["stats"]["present_artifact_count"] = len(present)
+
+    ledger_path = root / "evidence_ledger.json"
+    confidence_path = root / "confidence_report.json"
+    if ledger_path.exists():
+        try:
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            raw_ledger = json.dumps(ledger, ensure_ascii=False)
+            raw_confidence = ""
+            if confidence_path.exists():
+                raw_confidence = confidence_path.read_text(encoding="utf-8")
+            if "retrieval_result_only" in raw_ledger and '"rating": "high"' in raw_confidence:
+                results["warnings"].append(
+                    "High confidence appears near retrieval-only evidence; inspect ledger"
+                )
+        except json.JSONDecodeError as exc:
+            results["valid"] = False
+            results["errors"].append(f"Invalid evidence_ledger.json: {exc}")
+
+    return results
+
+
 def main():
     if len(sys.argv) < 2:
         print(
             "Usage: python validate_report.py <report_path> "
             "[--depth brief|standard|comprehensive] "
-            "[--vertical restaurant-retail-supply-chain|rrsc]"
+            "[--vertical restaurant-retail-supply-chain|rrsc] "
+            "[--researcher-workspace <workspace_dir>]"
         )
         sys.exit(1)
+
+    if "--researcher-workspace" in sys.argv:
+        workspace_idx = sys.argv.index("--researcher-workspace")
+        if workspace_idx + 1 >= len(sys.argv):
+            print("Missing value for --researcher-workspace")
+            sys.exit(1)
+        workspace_results = validate_researcher_workspace(sys.argv[workspace_idx + 1])
+        print(json.dumps(workspace_results, ensure_ascii=False, indent=2))
+        if len(sys.argv) <= 3:
+            sys.exit(0 if workspace_results["valid"] else 1)
+        if not workspace_results["valid"]:
+            sys.exit(1)
 
     report_path = sys.argv[1]
     depth = "standard"
