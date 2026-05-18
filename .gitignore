@@ -27,6 +27,7 @@ Thumbs.db
 
 # Logs
 *.log
+.cache/
 
 # Codex
 .codex
