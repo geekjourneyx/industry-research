@@ -68,6 +68,51 @@ description: |
 
 ---
 
+## 新执行中心：researcher CLI
+
+本 skill 不再把完整研究链路全部写在 prompt 编排中。行业研究请求由本 skill 负责识别、定域、定深度、定语言，然后调用 `researcher` CLI 生成可复核的研究工作区。
+
+基本调用：
+
+```bash
+researcher run "{用户研究问题}" --domain {domain} --depth {brief|standard|comprehensive}
+```
+
+连锁品牌、餐饮、零售、供应链问题必须使用：
+
+```bash
+researcher run "{用户研究问题}" --domain chain-brand --depth {depth}
+```
+
+`researcher` 必须产出：
+
+- `question.json`
+- `research_plan.json`
+- `claim_graph.json`
+- `trace_plan.json`
+- `retrieval_log.json`
+- `evidence_ledger.json`
+- `disconfirmation_log.json`
+- `confidence_report.json`
+- `final_report.md`
+- `report_metadata.json`
+
+## researcher 产物质量门
+
+交付前必须检查：
+
+1. `trace_plan.json` 是否把结论拆成可验证命题。
+2. `evidence_ledger.json` 是否存在。
+3. 检索结果是否只作为 lead，而不是最终证据。
+4. 高置信度结论是否至少有三类独立证据家族。
+5. 是否存在反证尝试。
+6. 需要浏览器验证的证据是否被明确标记。
+7. `confidence_report.json` 与 `final_report.md` 是否一致。
+
+如果 researcher 输出低置信度或悬置判断，最终回复必须直接说明原因，不得包装成确定结论。
+
+---
+
 ## 工具与来源约束
 
 ### `web_fetch` 的正确用法
