@@ -28,6 +28,7 @@ Thumbs.db
 # Logs
 *.log
 .cache/
+industry-research-workspace/
 
 # Codex
 .codex
