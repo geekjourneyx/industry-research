@@ -29,6 +29,8 @@ Thumbs.db
 *.log
 .cache/
 industry-research-workspace/
+docs/
+餐饮零售供应链专家协作说明.md
 
 # Codex
 .codex
