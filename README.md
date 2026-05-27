@@ -81,7 +81,15 @@
 
 ## 安装
 
-克隆仓库并构建研究引擎：
+推荐用 `skills` 直接安装智能体技能：
+
+```bash
+npx skills add geekjourneyx/industry-research
+```
+
+仓库地址：[geekjourneyx/industry-research](https://github.com/geekjourneyx/industry-research)
+
+如果你需要本地开发、调试或单独使用底层研究引擎，再克隆仓库并构建：
 
 ```bash
 git clone git@github.com:geekjourneyx/industry-research.git
@@ -118,6 +126,7 @@ $XDG_CONFIG_HOME/researcher/config.yaml
 
 ## 快速上手
 
+安装 Skill 后，在支持技能式工作流的智能体框架里发起行业研究请求即可。
 如果只想使用底层研究引擎，可以直接阅读 [researcher 使用说明](./researcher/README.md)。
 
 生成一份连锁品牌研究工作区：
@@ -198,6 +207,31 @@ make build
 | `references/` | 证据规则、报告模板、痕迹推理和分析框架 |
 | `scripts/validate_report.py` | 报告和工作区校验脚本 |
 | `evals/` | 评测问题和预期产物 |
+| `CHANGELOG.md` | 版本发布记录 |
+| `.github/workflows/release-researcher.yml` | `researcher` 二进制发布流程 |
+
+---
+
+## 发布 researcher
+
+`researcher` 通过 GitHub Actions 从版本 tag 发布。每次发布前必须完成文档校准、`CHANGELOG.md` 更新、Go 检查、二进制编译和校验文件生成。
+
+发布步骤：
+
+```bash
+cd researcher
+make fmt
+make vet
+make test
+make build
+
+cd ..
+RELEASE_TAG=v$(tr -d '[:space:]' < researcher/VERSION) researcher/scripts/check-release.sh
+git tag v$(tr -d '[:space:]' < researcher/VERSION)
+git push origin v$(tr -d '[:space:]' < researcher/VERSION)
+```
+
+推送 `v*.*.*` tag 后，GitHub Actions 会编译 macOS、Linux、Windows 的 amd64/arm64 版本，生成压缩包和 SHA256 校验文件，并创建 GitHub Release。
 
 ---
 

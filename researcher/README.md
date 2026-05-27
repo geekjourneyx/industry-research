@@ -198,3 +198,32 @@ make build
 ```
 
 如果测试环境禁止本地端口绑定，`make test` 里的 `httptest` 相关用例可能会失败。允许本地测试端口后重跑即可。
+
+---
+
+## 发布流程
+
+`researcher` 的正式版本通过 GitHub Release 分发二进制文件。发布前必须先校准文档、更新根目录 `CHANGELOG.md`，并确认 tag 与 `VERSION` 一致。
+
+发布前检查：
+
+```bash
+RELEASE_TAG=v$(tr -d '[:space:]' < VERSION) make release-check
+```
+
+本地打包：
+
+```bash
+make release
+```
+
+`make release` 会在仓库根目录的 `dist/` 下生成 macOS、Linux、Windows 的 amd64/arm64 压缩包和 SHA256 校验文件。
+
+正式发布：
+
+```bash
+git tag v$(tr -d '[:space:]' < VERSION)
+git push origin v$(tr -d '[:space:]' < VERSION)
+```
+
+推送 `v*.*.*` tag 后，GitHub Actions 会执行文档检查、Go 格式检查、`go vet`、`go test`、当前平台构建、多平台二进制打包，并创建 GitHub Release。

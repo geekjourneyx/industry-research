@@ -97,6 +97,31 @@ python3 scripts/validate_report.py <workspace_dir>/final_report.md --depth stand
 
 The validator checks required sections, citations, confidence mentions, weak synthesis patterns, length ranges, operating-footprint evidence, and required `researcher` artifacts.
 
+## Release Protocol
+
+Every release must complete all of the following before publishing:
+
+1. Documentation check and calibration:
+   - Review root `README.md` and `researcher/README.md`.
+   - Confirm installation, usage, release notes, and command examples match the current code.
+   - Keep the wording clear for humans and suitable for GitHub SEO/GEO discovery.
+2. Changelog update:
+   - Update `CHANGELOG.md` for the release.
+   - The changelog entry must include the release version, date, user-facing changes, and any breaking changes or migration notes.
+3. Binary build:
+   - Compile `researcher` release binaries before creating the release.
+   - At minimum cover macOS, Linux, and Windows for amd64; include arm64 where supported.
+   - Generate checksums for release artifacts.
+4. Git tag:
+   - Create a version tag only after documentation, changelog, tests, and binary build checks pass.
+   - The tag must match the `researcher/VERSION` value.
+5. GitHub release:
+   - Publish the release from the tag.
+   - Attach compiled binaries and checksum files.
+   - Do not publish a release from an unverified working tree.
+
+Do not treat GitHub Releases as a manual upload step only. The preferred path is a GitHub Actions workflow that runs documentation checks, Go checks, binary compilation, checksum generation, and release publishing from a version tag.
+
 ## Provider Configuration
 
 Do not use `~/.researcher/config.yaml`.

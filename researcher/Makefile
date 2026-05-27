@@ -3,7 +3,7 @@
 VERSION ?= $(shell tr -d '[:space:]' < VERSION)
 LDFLAGS := -s -w -X main.Version=$(VERSION)
 
-.PHONY: all build fast release clean test fmt vet install deps help
+.PHONY: all build fast release release-check clean test fmt vet install deps help
 
 all: build
 
@@ -17,16 +17,10 @@ fast:
 	@go build -trimpath -ldflags="$(LDFLAGS)" -o researcher ./cmd/researcher
 
 release:
-	@echo "Building researcher release binaries..."
-	@echo "Version: $(VERSION)"
-	@mkdir -p bin
-	@GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/researcher-linux-amd64 ./cmd/researcher
-	@GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/researcher-linux-arm64 ./cmd/researcher
-	@GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/researcher-darwin-amd64 ./cmd/researcher
-	@GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/researcher-darwin-arm64 ./cmd/researcher
-	@GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="$(LDFLAGS)" -o bin/researcher-windows-amd64.exe ./cmd/researcher
-	@chmod +x bin/*-linux* bin/*-darwin* 2>/dev/null || true
-	@ls -lh bin/
+	@../researcher/scripts/package-release.sh
+
+release-check:
+	@../researcher/scripts/check-release.sh
 
 clean:
 	@rm -f researcher
@@ -54,7 +48,8 @@ help:
 	@echo "researcher Makefile commands:"
 	@echo "  make build    - build current platform binary"
 	@echo "  make fast     - fast current platform build"
-	@echo "  make release  - build release binaries into bin/"
+	@echo "  make release  - build release archives into ../dist/"
+	@echo "  make release-check - validate docs, changelog, and tag before release"
 	@echo "  make clean    - remove build outputs"
 	@echo "  make test     - run tests"
 	@echo "  make fmt      - format Go code"

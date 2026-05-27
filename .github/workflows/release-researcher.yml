@@ -1,0 +1,77 @@
+name: Release researcher
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish researcher release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: researcher/go.mod
+          cache-dependency-path: researcher/go.sum
+
+      - name: Release documentation check
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: researcher/scripts/check-release.sh
+
+      - name: Go format check
+        working-directory: researcher
+        run: |
+          files="$(gofmt -l .)"
+          test -z "$files" || { echo "$files"; exit 1; }
+
+      - name: Go vet
+        working-directory: researcher
+        run: go vet ./...
+
+      - name: Go test
+        working-directory: researcher
+        run: go test -count=1 ./...
+
+      - name: Build current platform
+        working-directory: researcher
+        run: make build
+
+      - name: Build release artifacts
+        run: researcher/scripts/package-release.sh
+
+      - name: Prepare release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v version="$version" '
+            $0 ~ "^## \\[?" version "\\]?" {capture=1; next}
+            capture && $0 ~ "^## " {exit}
+            capture {print}
+          ' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "Release ${RELEASE_TAG}" > /tmp/release-notes.md
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --title "researcher ${RELEASE_TAG}" \
+            --notes-file /tmp/release-notes.md \
+            --verify-tag
