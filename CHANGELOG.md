@@ -2,7 +2,7 @@
 
 本项目遵循清晰、面向用户的更新记录。每次发布前必须更新本文件，并确保版本号与 `researcher/VERSION` 和 Git tag 对齐。
 
-## [0.1.0] - 2026-05-28
+## [1.0.0] - 2026-05-28
 
 ### 新增
 
@@ -13,5 +13,5 @@
 
 ### 发布
 
-- 约定使用 `v0.1.0` tag 发布首个 GitHub Release。
+- 约定使用 `v1.0.0` tag 发布首个 GitHub Release。
 - 发布产物包含 macOS、Linux、Windows 的 `researcher` 二进制压缩包和 SHA256 校验文件。
