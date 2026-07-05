@@ -120,7 +120,6 @@ ARK_API_KEY=... ./researcher answer volcengine \
 | `RESEARCHER_CONFIG` | 指向配置文件 |
 | `BOCHA_API_KEY` | 覆盖 Bocha 密钥 |
 | `ARK_API_KEY` | 覆盖 Volcengine Ark 密钥 |
-| `XDG_CONFIG_HOME` | 指定默认配置目录 |
 
 ---
 
@@ -130,8 +129,7 @@ ARK_API_KEY=... ./researcher answer volcengine \
 
 1. `--config <path>`
 2. `RESEARCHER_CONFIG`
-3. `$XDG_CONFIG_HOME/researcher/config.yaml`
-4. `~/.config/researcher/config.yaml`
+3. `~/.config/researcher/config.yaml`
 
 不要使用 `~/.researcher/config.yaml`。
 

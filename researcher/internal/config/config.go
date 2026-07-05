@@ -49,11 +49,8 @@ func DefaultConfig() Config {
 	}
 }
 
-func DefaultSearchPaths(home, xdgConfigHome string) []string {
-	paths := make([]string, 0, 2)
-	if xdgConfigHome != "" {
-		paths = append(paths, filepath.Join(xdgConfigHome, "researcher", "config.yaml"))
-	}
+func DefaultSearchPaths(home string) []string {
+	paths := make([]string, 0, 1)
 	if home != "" {
 		paths = append(paths, filepath.Join(home, ".config", "researcher", "config.yaml"))
 	}
@@ -95,8 +92,7 @@ func LoadEffective(explicitPath string, getenv func(string) string, home string)
 		return ApplyEnv(cfg, getenv), nil
 	}
 
-	xdgConfigHome := getenv("XDG_CONFIG_HOME")
-	for _, path := range DefaultSearchPaths(home, xdgConfigHome) {
+	for _, path := range DefaultSearchPaths(home) {
 		cfg, err := LoadFile(path)
 		if err == nil {
 			return ApplyEnv(cfg, getenv), nil

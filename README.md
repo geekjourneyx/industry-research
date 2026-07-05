@@ -118,7 +118,6 @@ export ARK_API_KEY="..."
 ```text
 --config <path>
 RESEARCHER_CONFIG
-$XDG_CONFIG_HOME/researcher/config.yaml
 ~/.config/researcher/config.yaml
 ```
 

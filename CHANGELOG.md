@@ -2,6 +2,18 @@
 
 本项目遵循清晰、面向用户的更新记录。每次发布前必须更新本文件，并确保版本号与 `researcher/VERSION` 和 Git tag 对齐。
 
+## [1.0.1] - 2026-07-05
+
+### 修复
+
+- 默认配置读取现在固定使用 `~/.config/researcher/config.yaml`，不再受 `XDG_CONFIG_HOME` 影响。
+- 更新配置读取说明，避免用户继续按旧路径排查。
+
+### 验证
+
+- 增加回归测试，确认设置 `XDG_CONFIG_HOME` 时仍会使用 home 目录下的 researcher 配置。
+- 通过真实 Bocha 搜索和 Volcengine 问答闭环验证配置可正常加载并输出结果。
+
 ## [1.0.0] - 2026-05-28
 
 ### 新增

@@ -306,7 +306,6 @@ func TestRunCapabilitiesExtraPositionalArgReturnsOne(t *testing.T) {
 func TestRunRetrieveDefaultsToBochaAndWritesJSONProviderFailure(t *testing.T) {
 	t.Setenv("BOCHA_API_KEY", "")
 	t.Setenv("RESEARCHER_CONFIG", "")
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -458,7 +457,6 @@ func TestRunAnswerUnsupportedProviderReturnsInvalidArguments(t *testing.T) {
 func TestRunAnswerVolcengineMissingAPIKeyWritesJSONProviderFailure(t *testing.T) {
 	t.Setenv("ARK_API_KEY", "")
 	t.Setenv("RESEARCHER_CONFIG", "")
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

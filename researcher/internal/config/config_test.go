@@ -8,9 +8,8 @@ import (
 )
 
 func TestDefaultSearchPaths(t *testing.T) {
-	got := DefaultSearchPaths("/home/alice", "/tmp/xdg")
+	got := DefaultSearchPaths("/home/alice")
 	want := []string{
-		"/tmp/xdg/researcher/config.yaml",
 		"/home/alice/.config/researcher/config.yaml",
 	}
 
@@ -85,23 +84,18 @@ defaults:
 func TestLoadEffectiveExplicitPathWinsOverEnvAndDefaultPaths(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
-	xdg := filepath.Join(dir, "xdg")
 	explicitPath := filepath.Join(dir, "explicit.yaml")
 	envPath := filepath.Join(dir, "env.yaml")
-	xdgPath := filepath.Join(xdg, "researcher", "config.yaml")
 	homePath := filepath.Join(home, ".config", "researcher", "config.yaml")
 
 	writeConfig(t, explicitPath, "explicit")
 	writeConfig(t, envPath, "env")
-	writeConfig(t, xdgPath, "xdg")
 	writeConfig(t, homePath, "home")
 
 	got, err := LoadEffective(explicitPath, func(key string) string {
 		switch key {
 		case "RESEARCHER_CONFIG":
 			return envPath
-		case "XDG_CONFIG_HOME":
-			return xdg
 		default:
 			return ""
 		}
@@ -118,19 +112,14 @@ func TestLoadEffectiveExplicitPathWinsOverEnvAndDefaultPaths(t *testing.T) {
 func TestLoadEffectiveUsesResearcherConfigWhenExplicitPathEmpty(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
-	xdg := filepath.Join(dir, "xdg")
 	envPath := filepath.Join(dir, "env.yaml")
-	xdgPath := filepath.Join(xdg, "researcher", "config.yaml")
 
 	writeConfig(t, envPath, "env")
-	writeConfig(t, xdgPath, "xdg")
 
 	got, err := LoadEffective("", func(key string) string {
 		switch key {
 		case "RESEARCHER_CONFIG":
 			return envPath
-		case "XDG_CONFIG_HOME":
-			return xdg
 		default:
 			return ""
 		}
@@ -144,7 +133,7 @@ func TestLoadEffectiveUsesResearcherConfigWhenExplicitPathEmpty(t *testing.T) {
 	}
 }
 
-func TestLoadEffectivePrefersXDGConfigOverHomeConfig(t *testing.T) {
+func TestLoadEffectiveIgnoresXDGConfigHome(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
 	xdg := filepath.Join(dir, "xdg")
@@ -164,23 +153,19 @@ func TestLoadEffectivePrefersXDGConfigOverHomeConfig(t *testing.T) {
 		t.Fatalf("LoadEffective() error = %v", err)
 	}
 
-	if got.Defaults.Depth != "xdg" {
-		t.Fatalf("Depth = %q, want XDG config value", got.Defaults.Depth)
+	if got.Defaults.Depth != "home" {
+		t.Fatalf("Depth = %q, want home config value", got.Defaults.Depth)
 	}
 }
 
-func TestLoadEffectiveUsesHomeConfigWhenXDGMissing(t *testing.T) {
+func TestLoadEffectiveUsesHomeConfigDefaultPath(t *testing.T) {
 	dir := t.TempDir()
 	home := filepath.Join(dir, "home")
-	xdg := filepath.Join(dir, "xdg")
 	homePath := filepath.Join(home, ".config", "researcher", "config.yaml")
 
 	writeConfig(t, homePath, "home")
 
 	got, err := LoadEffective("", func(key string) string {
-		if key == "XDG_CONFIG_HOME" {
-			return xdg
-		}
 		return ""
 	}, home)
 	if err != nil {

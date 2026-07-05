@@ -130,8 +130,7 @@ Config lookup order:
 
 1. `--config <path>`
 2. `RESEARCHER_CONFIG`
-3. `$XDG_CONFIG_HOME/researcher/config.yaml`
-4. `~/.config/researcher/config.yaml`
+3. `~/.config/researcher/config.yaml`
 
 Use environment variables for secrets:
 
